@@ -16,6 +16,14 @@ export interface Product {
   images: string[];
   rating?: number;
   reviewCount?: number;
+  brand?: string;
+  sku?: string;
+  stock?: number;
+  warranty?: string;
+  deliveryTime?: string;
+  returnPolicy?: string;
+  highlights?: string[];
+  specifications?: Record<string, string> | Array<{ label: string; value: string }>;
   digitalFormat?: string;
   licenseTerms?: string;
   gameTopUp?: boolean;

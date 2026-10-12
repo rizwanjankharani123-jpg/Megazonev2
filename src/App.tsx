@@ -4,10 +4,9 @@ import {
   ShoppingBag,
   Heart,
   ArrowRight,
+  ArrowLeft,
   ShieldCheck,
-  Download,
   X,
-  Gamepad2,
   Package,
   Truck,
   Smartphone,
@@ -22,13 +21,13 @@ import {
   LogOut,
   LayoutGrid,
   CheckCircle2,
-  Clock,
-  Sparkles,
-  MapPin,
-  Settings,
-  ChevronRight,
+  Watch,
+  Footprints,
+  FileText,
+  ExternalLink,
+  Copy,
 } from "lucide-react";
-import { categories } from "../shared/src/data";
+import { categories as defaultCategories } from "../shared/src/data";
 import type { Product } from "../shared/src/types";
 import { auth, configured, db, functions } from "../shared/src/firebase";
 import {
@@ -55,8 +54,8 @@ import {
 import { httpsCallable } from "firebase/functions";
 
 import heroImg from "./assets/images/hero_marketplace_showcase_1791779144263.jpg";
-import gamingImg from "./assets/images/gaming_topup_spotlight_1791779158038.jpg";
-import digitalImg from "./assets/images/digital_creator_assets_1791779171481.jpg";
+import fashionImg from "./assets/images/fashion_footwear_showcase_1791785542648.jpg";
+import homeAppliancesImg from "./assets/images/home_appliances_showcase_1791785554234.jpg";
 
 const money = (n: number) => `PKR ${(Number(n) || 0).toLocaleString("en-PK")}`;
 
@@ -93,64 +92,62 @@ interface SellerApplicationDoc {
   ownerName: string;
   phone: string;
   email: string;
+  adminEmail?: string;
+  adminPassword?: string;
   city: string;
   categoryFocus: string;
   membershipPlan: "trial_30_days" | "lifetime_direct";
   trialEndsAt?: string;
   lifetimeFeeAmount?: number;
   paymentStatus?: string;
+  acceptedTerms?: boolean;
   status: "pending" | "approved" | "active" | "rejected" | "suspended";
   adminNote?: string;
   approvedRole?: string;
+  adminPanelUrl?: string;
 }
 
-type MainTab = "home" | "categories" | "orders" | "profile";
-type ProfileSection = "account" | "seller" | "wishlist" | "addresses";
+type MainTab = "home" | "categories" | "cart" | "orders" | "profile";
+type ProfileSection = "account" | "wishlist" | "seller";
 type SortOption = "featured" | "price-asc" | "price-desc" | "rating";
 
 const HERO_SLIDES = [
   {
-    id: "mall",
-    kicker: "☪ PAKISTAN’S OWN MARKETPLACE · NATIONWIDE DELIVERY",
-    title: "Authentic Tech, Fashion & Home Deals Across Pakistan",
+    id: "electronics",
+    kicker: "☪ PAKISTAN’S ONLINE SHOPPING DESTINATION · NATIONWIDE COD",
+    title: "Authentic Electronics, Phones & Gadgets Across Pakistan",
     subtitle:
-      "Shop verified Pakistani stores with Cash on Delivery, transparent pricing, and real-time order tracking.",
-    ctaText: "Explore Marketplace",
-    category: "All",
-    typeFilter: "all" as const,
+      "Shop verified stores with doorstep Cash on Delivery, transparent pricing, and real-time order tracking.",
+    ctaText: "Shop Latest Deals",
     image: heroImg,
   },
   {
-    id: "gaming",
-    kicker: "INSTANT GAMING DESK · PLAYER ID TOP-UPS",
-    title: "PUBG Mobile UC, Free Fire & Ludo Diamonds",
+    id: "fashion",
+    kicker: "PREMIUM FASHION · FOOTWEAR & WRISTWATCHES",
+    title: "Signature Apparel, Leather Footwear & Classic Watches",
     subtitle:
-      "Fast game currency top-ups credited directly to your Player ID after payment verification.",
-    ctaText: "Shop Game Top-Ups",
-    category: "Gaming",
-    typeFilter: "all" as const,
-    image: gamingImg,
+      "Curated seasonal fashion, sneakers, and accessories delivered across Pakistan with Cash on Delivery.",
+    ctaText: "Explore Featured Deals",
+    image: fashionImg,
   },
   {
-    id: "digital",
-    kicker: "DIGITAL CREATOR STORE · INSTANT ACCESS",
-    title: "Software, Templates & Digital Downloads",
+    id: "home",
+    kicker: "HOME & KITCHEN ESSENTIALS · FAST DISPATCH",
+    title: "Modern Appliances & Everyday Home Upgrades",
     subtitle:
-      "Get design kits, learning resources, and digital tools from Pakistani creators with verified online transfer.",
-    ctaText: "Browse Digital Store",
-    category: "Digital Products",
-    typeFilter: "digital" as const,
-    image: digitalImg,
+      "Upgrade your kitchen and home with quality appliances and 7-day easy return protection.",
+    ctaText: "Browse Deals",
+    image: homeAppliancesImg,
   },
 ];
 
 const DEPARTMENT_TILES = [
-  { name: "Electronics", icon: Laptop, desc: "Audio, watches & gadgets" },
+  { name: "Electronics", icon: Laptop, desc: "Audio, laptops & gadgets" },
   { name: "Phones & Accessories", icon: Smartphone, desc: "Chargers, covers & cables" },
-  { name: "Gaming", icon: Gamepad2, desc: "PUBG UC, Free Fire & Ludo" },
   { name: "Fashion", icon: Shirt, desc: "Men, women & eastern wear" },
+  { name: "Shoes", icon: Footprints, desc: "Sneakers, formal & casual" },
+  { name: "Watches & Accessories", icon: Watch, desc: "Wristwatches & eyewear" },
   { name: "Home & Kitchen", icon: Home, desc: "Appliances & daily living" },
-  { name: "Digital Products", icon: Download, desc: "Templates, tools & guides" },
 ];
 
 const ORDER_STEPS = [
@@ -160,6 +157,42 @@ const ORDER_STEPS = [
   { key: "shipped", label: "On the Way" },
   { key: "completed", label: "Delivered" },
 ];
+
+const LEGAL_POLICIES: Record<string, { title: string; points: string[] }> = {
+  terms: {
+    title: "Terms & Conditions of Use",
+    points: [
+      "Welcome to MEGAZONE Pakistan. By accessing or placing an order on this website, you agree to abide by our platform shopping terms.",
+      "All product prices are listed in Pakistani Rupees (PKR). Customers must provide accurate name, active mobile/WhatsApp number, and complete street address for courier delivery.",
+      "Orders placed via Cash on Delivery (COD) are confirmed via phone/SMS before dispatch. Refusal of confirmed COD parcels without valid reason may restrict future COD ordering.",
+      "Multi-vendor sellers registered on MEGAZONE are directly responsible for product authenticity, accurate descriptions, and timely dispatch.",
+    ],
+  },
+  returns: {
+    title: "7-Day Return, Refund & Exchange Policy",
+    points: [
+      "Customers are entitled to a 7-Day Easy Return & Check Warranty if the delivered item is damaged, defective, incomplete, or different from the description shown on the product page.",
+      "To initiate a return or replacement, keep the original box, tags, and invoice intact and contact support with your Order ID (MZ-...).",
+      "Once the returned parcel is inspected, your refund is processed via Easypaisa, JazzCash, or Bank Transfer within 3–5 working days.",
+    ],
+  },
+  shipping: {
+    title: "Shipping & Cash on Delivery (COD) Policy",
+    points: [
+      "MEGAZONE delivers nationwide across Pakistan (including Karachi, Lahore, Islamabad, Rawalpindi, Faisalabad, Multan, Peshawar, Quetta, and all major cities/towns).",
+      "Standard delivery time is 2 to 5 working days depending on your city and courier route.",
+      "You can track your live order progress anytime in the 'My Orders' tab using your Order Number or Mobile Number.",
+    ],
+  },
+  privacy: {
+    title: "Privacy & Buyer Protection Policy",
+    points: [
+      "Your personal data (Name, Phone Number, Email, and Delivery Address) is strictly used to process, ship, and track your orders.",
+      "MEGAZONE never sells or shares your personal contact details with unauthorized third parties.",
+      "Online transfers (Easypaisa, JazzCash, or Bank Transfer) are verified against your Transaction Reference ID (TID) before order fulfillment.",
+    ],
+  },
+};
 
 function getOrderStepIndex(status: string): number {
   const s = (status || "new").toLowerCase();
@@ -175,14 +208,14 @@ function ProductCard({
   onAdd,
   onBuy,
   onWishlist,
-  onQuickView,
+  onOpenProduct,
   isWishlisted,
 }: {
   product: Product;
   onAdd: (p: Product) => void;
   onBuy: (p: Product) => void;
   onWishlist: (p: Product) => void;
-  onQuickView: (p: Product) => void;
+  onOpenProduct: (p: Product) => void;
   isWishlisted: boolean;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
@@ -193,15 +226,9 @@ function ProductCard({
       ? Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)
       : 0;
 
-  const formatLabel = product.gameTopUp
-    ? product.gamePackage || "Game Top-Up"
-    : product.type === "digital"
-      ? product.digitalFormat || "Digital Download"
-      : "Cash on Delivery";
-
   return (
     <article className="product-card">
-      <div className="product-media" onClick={() => onQuickView(product)}>
+      <div className="product-media" onClick={() => onOpenProduct(product)}>
         <button
           type="button"
           className={`wishlist-trigger ${isWishlisted ? "active" : ""}`}
@@ -224,50 +251,44 @@ function ProductCard({
             referrerPolicy="no-referrer"
             onError={() => setImgFailed(true)}
           />
-        ) : product.gameTopUp ? (
-          <div className="product-fallback-art game-art">
-            <Gamepad2 size={38} />
-            <span>{product.gamePackage || product.gameName || "Game Top-Up"}</span>
-          </div>
-        ) : product.type === "digital" ? (
-          <div className="product-fallback-art">
-            <Download size={36} />
-            <span>{product.digitalFormat || "Digital Asset"}</span>
-          </div>
         ) : (
           <div className="product-fallback-art">
             <Package size={36} />
-            <span>{product.category || "Marketplace Product"}</span>
+            <span>{product.category || "Product"}</span>
           </div>
         )}
       </div>
 
       <div className="product-body">
         <div className="product-meta">
-          <span className="product-meta-seller">
-            {product.gameTopUp ? product.gameName || product.sellerName : product.sellerName}
-          </span>
-          <span aria-hidden="true">·</span>
-          <span>{product.category}</span>
-          <span aria-hidden="true">·</span>
-          <span>{formatLabel}</span>
+          <span className="product-meta-seller">{product.sellerName || "Verified Store"}</span>
+          {product.category && (
+            <>
+              <span aria-hidden="true">·</span>
+              <span>{product.category}</span>
+            </>
+          )}
         </div>
 
-        <h3 className="product-title" onClick={() => onQuickView(product)}>
+        <h3 className="product-title" onClick={() => onOpenProduct(product)}>
           {product.title}
         </h3>
 
+        {product.description && (
+          <p className="product-desc-preview" onClick={() => onOpenProduct(product)}>
+            {product.description}
+          </p>
+        )}
+
         <div className="product-rating-line">
           <span className="stars-gold">
-            ★ {product.rating ? product.rating.toFixed(1) : "New"}
+            ★ {product.rating ? product.rating.toFixed(1) : "4.8"}
           </span>
           <span>·</span>
           <span>
             {product.reviewCount
               ? `${product.reviewCount} verified ratings`
-              : product.gameTopUp
-                ? "Player ID delivery"
-                : "Verified Pakistani Seller"}
+              : "Authentic Quality"}
           </span>
         </div>
 
@@ -283,10 +304,10 @@ function ProductCard({
 
         <div className="product-actions">
           <button type="button" className="btn-cart" onClick={() => onAdd(product)}>
-            <ShoppingBag size={15} /> Add to Cart
+            <ShoppingBag size={14} /> Add to Cart
           </button>
           <button type="button" className="btn-buy-now" onClick={() => onBuy(product)}>
-            Buy Now <ArrowRight size={15} />
+            Buy Now <ArrowRight size={14} />
           </button>
         </div>
       </div>
@@ -294,47 +315,37 @@ function ProductCard({
   );
 }
 
-function matchesCategory(p: Product, activeCategory: string): boolean {
-  if (activeCategory === "All") return true;
-  if (p.category === activeCategory) return true;
-  if (activeCategory === "Gaming" && p.gameTopUp) return true;
-  if (activeCategory === "Digital Products" && p.type === "digital") return true;
-  const hay = `${p.title ?? ""} ${p.gameName ?? ""} ${p.gamePackage ?? ""} ${p.category ?? ""}`.toLowerCase();
-  if (activeCategory === "PUBG Mobile UC" && p.gameTopUp && hay.includes("pubg")) return true;
-  if (
-    activeCategory === "Free Fire Diamonds" &&
-    p.gameTopUp &&
-    (hay.includes("free fire") || hay.includes("freefire"))
-  ) {
-    return true;
-  }
-  if (activeCategory === "Ludo Diamonds" && p.gameTopUp && hay.includes("ludo")) return true;
-  return false;
-}
-
 export default function App() {
   const catalogSectionRef = useRef<HTMLElement | null>(null);
 
-  // Main Daraz-inspired navigation tabs: Home, Categories, My Orders (with Track Order), User Profile (with Settings & Become a Seller)
+  // 5 Main Tabs: Home, Categories, Cart, My Orders, Profile
   const [activeTab, setActiveTab] = useState<MainTab>("home");
   const [profileSection, setProfileSection] = useState<ProfileSection>("account");
+
+  // Full Daraz / Amazon-Style Product Detail Page (PDP) state
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedImageIdx, setSelectedImageIdx] = useState(0);
+  const [pdpQuantity, setPdpQuantity] = useState(1);
+
+  // Policy Modal state (for Terms & Conditions in Home Footer)
+  const [activePolicyKey, setActivePolicyKey] = useState<string | null>(null);
 
   const [activeSlide, setActiveSlide] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [catalog, setCatalog] = useState<Product[]>([]);
   const [loadingCatalog, setLoadingCatalog] = useState<boolean>(configured);
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [typeFilter, setTypeFilter] = useState<"all" | "physical" | "digital">("all");
+  const [selectedCategoryInTab, setSelectedCategoryInTab] = useState("All");
   const [sortBy, setSortBy] = useState<SortOption>("featured");
   const [cart, setCart] = useState<CheckoutLine[]>([]);
   const [toast, setToast] = useState("");
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
-  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
 
-  // Auth, User Profile & Role state
+  // Auth, User Profile & Multi-Vendor Admin Role state
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<string>("customer");
   const [userSellerStatus, setUserSellerStatus] = useState<string>("");
+  const [userAdminPanelUrl, setUserAdminPanelUrl] = useState<string>("");
+  const [globalAdminPanelUrl, setGlobalAdminPanelUrl] = useState<string>("");
   const [sellerApplication, setSellerApplication] = useState<SellerApplicationDoc | null>(null);
 
   const [authMode, setAuthMode] = useState<"login" | "signup" | "reset">("login");
@@ -359,8 +370,26 @@ export default function App() {
   const [trackingBusy, setTrackingBusy] = useState(false);
 
   const [lifetimeFeeSetting, setLifetimeFeeSetting] = useState<number>(2500);
+  const [superAdminPaymentAccount, setSuperAdminPaymentAccount] = useState<{
+    accountTitle: string;
+    accountNumber: string;
+    easypaisa: string;
+    jazzcash: string;
+    bankName: string;
+    bankAccount: string;
+    instructions: string;
+  }>({
+    accountTitle: "MEGAZONE Pakistan (Super Admin)",
+    accountNumber: "",
+    easypaisa: "",
+    jazzcash: "",
+    bankName: "",
+    bankAccount: "",
+    instructions:
+      "Send the Lifetime Seller Membership fee to the official Super Admin account above and enter your TRX / Reference ID below for verification.",
+  });
 
-  // Become a Seller Form state (Inside User Profile Settings)
+  // Become a Seller Form state (Inside User Profile Settings — Sends Gmail & Password to Super Admin Panel)
   const [sellerSubmitting, setSellerSubmitting] = useState(false);
   const [sellerError, setSellerError] = useState("");
   const [sellerSuccess, setSellerSuccess] = useState("");
@@ -372,13 +401,14 @@ export default function App() {
     email: "",
     password: "",
     city: "",
-    categoryFocus: "Physical & Digital Products",
+    categoryFocus: "Electronics, Fashion & General Merchandise",
     accountTitle: "",
     easypaisa: "",
     jazzcash: "",
     bankName: "",
     bankAccount: "",
     paymentReference: "",
+    acceptedTerms: false,
   });
 
   // Checkout state
@@ -398,9 +428,6 @@ export default function App() {
     payment: "cod",
     paymentReference: "",
     notes: "",
-    playerId: "",
-    serverId: "",
-    gameUsername: "",
   });
 
   const showToast = (msg: string, ms = 2600) => {
@@ -408,7 +435,21 @@ export default function App() {
     window.setTimeout(() => setToast(""), ms);
   };
 
+  const openProductDetail = (p: Product) => {
+    setSelectedProduct(p);
+    setSelectedImageIdx(0);
+    setPdpQuantity(1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const switchMainTab = (tab: MainTab) => {
+    setSelectedProduct(null);
+    setActiveTab(tab);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const scrollToCatalog = () => {
+    setSelectedProduct(null);
     if (activeTab !== "home" && activeTab !== "categories") {
       setActiveTab("home");
       window.setTimeout(() => {
@@ -420,6 +461,7 @@ export default function App() {
   };
 
   const openProfileSection = (sec: ProfileSection) => {
+    setSelectedProduct(null);
     setAuthError("");
     setAuthMessage("");
     setSellerError("");
@@ -451,20 +493,16 @@ export default function App() {
       if (savedSellerApp && typeof savedSellerApp === "object") {
         setSellerApplication(savedSellerApp);
       }
-    } catch {
-      // Ignore corrupt localStorage
-    }
+    } catch {}
   }, []);
 
   useEffect(() => {
     try {
       localStorage.setItem("megazone_wishlist", JSON.stringify(wishlistIds));
-    } catch {
-      // Ignore storage quota errors
-    }
+    } catch {}
   }, [wishlistIds]);
 
-  // Listen to Firebase Auth state & live User Document + Seller Application status from Admin Panel
+  // Listen to Firebase Auth state & live User Document + Seller Application status from Super Admin Panel
   useEffect(() => {
     if (!configured || !auth) return;
     let unsubUserDoc: (() => void) | null = null;
@@ -484,10 +522,10 @@ export default function App() {
       if (!u) {
         setUserRole("customer");
         setUserSellerStatus("");
+        setUserAdminPanelUrl("");
         return;
       }
 
-      // Load local cached profile first so UI is immediate even if Firestore rules restrict read
       try {
         const localProf = JSON.parse(
           localStorage.getItem(`megazone_profile_${u.uid}`) || "{}",
@@ -507,7 +545,6 @@ export default function App() {
       } catch {}
 
       if (db) {
-        // Real-time listener on users/{uid} so when Admin promotes user to seller/admin, they see it immediately
         unsubUserDoc = onSnapshot(
           doc(db, "users", u.uid),
           (snap) => {
@@ -519,6 +556,9 @@ export default function App() {
             const address = data.address || "";
             setUserRole(data.role || "customer");
             setUserSellerStatus(data.sellerStatus || data.status || "");
+            if (data.adminPanelUrl || data.panelUrl || data.sellerPanelUrl) {
+              setUserAdminPanelUrl(data.adminPanelUrl || data.panelUrl || data.sellerPanelUrl);
+            }
 
             setAuthForm((prev) => ({
               ...prev,
@@ -544,12 +584,9 @@ export default function App() {
               city: prev.city || city,
             }));
           },
-          () => {
-            // Ignore permission error if users collection is restricted
-          },
+          () => {},
         );
 
-        // Real-time listener on sellerApplications/{uid} for Admin approval notification
         unsubSellerApp = onSnapshot(
           doc(db, "sellerApplications", u.uid),
           (snap) => {
@@ -561,9 +598,7 @@ export default function App() {
               } catch {}
             }
           },
-          () => {
-            // Ignore if rules restrict read on sellerApplications
-          },
+          () => {},
         );
       }
     });
@@ -605,23 +640,60 @@ export default function App() {
         });
         setUserOrders(list);
       },
-      () => {
-        // Fallback to localOrders if rules restrict
-      },
+      () => {},
     );
     return () => unsub();
   }, [currentUser]);
 
-  // Load lifetime seller fee from settings/marketplacePayment
+  // Load dynamic lifetime seller fee, Super Admin payment account numbers, and optional adminPanelUrl from settings/marketplacePayment
   useEffect(() => {
     if (!configured || !db) return;
-    getDoc(doc(db, "settings", "marketplacePayment"))
-      .then((snap) => {
-        if (snap.exists() && typeof snap.data()?.lifetimeMembershipFee === "number") {
-          setLifetimeFeeSetting(snap.data()!.lifetimeMembershipFee);
+    const unsub = onSnapshot(
+      doc(db, "settings", "marketplacePayment"),
+      (snap) => {
+        if (snap.exists()) {
+          const d = snap.data();
+          const dynamicFee =
+            typeof d?.lifetimeMembershipFee === "number"
+              ? d.lifetimeMembershipFee
+              : typeof d?.lifetimeFee === "number"
+                ? d.lifetimeFee
+                : typeof d?.sellerLifetimeFee === "number"
+                  ? d.sellerLifetimeFee
+                  : typeof d?.feeAmount === "number"
+                    ? d.feeAmount
+                    : Number(d?.lifetimeMembershipFee || d?.lifetimeFee || 0);
+          if (dynamicFee > 0) {
+            setLifetimeFeeSetting(dynamicFee);
+          }
+          setSuperAdminPaymentAccount({
+            accountTitle:
+              d?.accountTitle ||
+              d?.superAdminAccountTitle ||
+              d?.ownerName ||
+              "MEGAZONE Pakistan (Super Admin)",
+            accountNumber:
+              d?.accountNumber ||
+              d?.superAdminAccountNumber ||
+              d?.primaryAccountNumber ||
+              "",
+            easypaisa: d?.easypaisa || d?.easypaisaNumber || "",
+            jazzcash: d?.jazzcash || d?.jazzcashNumber || "",
+            bankName: d?.bankName || "",
+            bankAccount: d?.bankAccount || d?.iban || "",
+            instructions:
+              d?.instructions ||
+              d?.sellerFeeInstructions ||
+              "Send the Lifetime Seller Membership fee to the Super Admin account above and enter your TRX ID below.",
+          });
+          if (d?.adminPanelUrl || d?.sellerPanelUrl) {
+            setGlobalAdminPanelUrl(d.adminPanelUrl || d.sellerPanelUrl);
+          }
         }
-      })
-      .catch(() => {});
+      },
+      () => {},
+    );
+    return () => unsub();
   }, []);
 
   // Load published catalog from Firestore
@@ -636,7 +708,8 @@ export default function App() {
     const unsub = onSnapshot(
       q,
       (snap) => {
-        setCatalog(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Product)));
+        const items = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Product));
+        setCatalog(items);
         setLoadingCatalog(false);
       },
       () => {
@@ -645,6 +718,26 @@ export default function App() {
     );
     return () => unsub();
   }, []);
+
+  // Available categories for the dedicated Categories Tab
+  const availableCategories = useMemo(() => {
+    const set = new Set<string>(defaultCategories);
+    for (const p of catalog) {
+      if (p.category && p.category.trim()) {
+        const cat = p.category.trim();
+        const lower = cat.toLowerCase();
+        if (
+          !lower.includes("digital") &&
+          !lower.includes("pubg") &&
+          !lower.includes("free fire") &&
+          !lower.includes("ludo")
+        ) {
+          set.add(cat);
+        }
+      }
+    }
+    return Array.from(set);
+  }, [catalog]);
 
   const allMyOrders = useMemo(() => {
     const map = new Map<string, OrderRecord>();
@@ -655,7 +748,7 @@ export default function App() {
     return Array.from(map.values());
   }, [userOrders, localOrders]);
 
-  // Determine if the user has been approved as Seller / Admin by the Admin Panel
+  // Determine if the user has been approved as Seller / Vendor Admin by the Super Admin Panel
   const isSellerApproved = useMemo(() => {
     if (
       userRole === "seller" ||
@@ -675,14 +768,49 @@ export default function App() {
     return false;
   }, [userRole, userSellerStatus, sellerApplication]);
 
-  const visible = useMemo(() => {
+  // Resolve the separate Admin Panel URL provided by Super Admin
+  const resolvedAdminPanelUrl = useMemo(() => {
+    const envUrl = ((import.meta as any).env?.VITE_ADMIN_PANEL_URL || "").trim();
+    return (
+      sellerApplication?.adminPanelUrl ||
+      userAdminPanelUrl ||
+      globalAdminPanelUrl ||
+      envUrl ||
+      ""
+    );
+  }, [sellerApplication, userAdminPanelUrl, globalAdminPanelUrl]);
+
+  // Home Catalog Products (No Category filter on Home; filtered only by search query + sort)
+  const homeVisibleProducts = useMemo(() => {
     const qLower = searchQuery.trim().toLowerCase();
     const filtered = catalog.filter(
       (p) =>
-        matchesCategory(p, activeCategory) &&
-        (typeFilter === "all" || p.type === typeFilter) &&
+        !qLower ||
+        `${p.title ?? ""} ${p.category ?? ""} ${p.sellerName ?? ""} ${p.description ?? ""} ${p.brand ?? ""}`
+          .toLowerCase()
+          .includes(qLower),
+    );
+
+    if (sortBy === "price-asc") {
+      return [...filtered].sort((a, b) => (a.price || 0) - (b.price || 0));
+    }
+    if (sortBy === "price-desc") {
+      return [...filtered].sort((a, b) => (b.price || 0) - (a.price || 0));
+    }
+    if (sortBy === "rating") {
+      return [...filtered].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    }
+    return filtered;
+  }, [catalog, searchQuery, sortBy]);
+
+  // Categories Tab Filtered Products
+  const categoryTabProducts = useMemo(() => {
+    const qLower = searchQuery.trim().toLowerCase();
+    const filtered = catalog.filter(
+      (p) =>
+        (selectedCategoryInTab === "All" || p.category === selectedCategoryInTab) &&
         (!qLower ||
-          `${p.title ?? ""} ${p.category ?? ""} ${p.sellerName ?? ""} ${p.description ?? ""} ${p.gameName ?? ""} ${p.gamePackage ?? ""}`
+          `${p.title ?? ""} ${p.category ?? ""} ${p.sellerName ?? ""} ${p.description ?? ""} ${p.brand ?? ""}`
             .toLowerCase()
             .includes(qLower)),
     );
@@ -697,29 +825,53 @@ export default function App() {
       return [...filtered].sort((a, b) => (b.rating || 0) - (a.rating || 0));
     }
     return filtered;
-  }, [catalog, searchQuery, activeCategory, typeFilter, sortBy]);
+  }, [catalog, searchQuery, selectedCategoryInTab, sortBy]);
 
   const wishlistedProducts = useMemo(
     () => catalog.filter((p) => wishlistIds.includes(p.id)),
     [catalog, wishlistIds],
   );
 
+  const relatedProducts = useMemo(() => {
+    if (!selectedProduct) return [];
+    return catalog
+      .filter((p) => p.id !== selectedProduct.id && p.category === selectedProduct.category)
+      .slice(0, 3);
+  }, [catalog, selectedProduct]);
+
   const totalCartCount = useMemo(
     () => cart.reduce((sum, item) => sum + item.quantity, 0),
     [cart],
   );
 
-  const add = (p: Product) => {
+  const cartTotalAmount = useMemo(
+    () => cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0),
+    [cart],
+  );
+
+  const add = (p: Product, qty = 1) => {
     setCart((old) => {
       const idx = old.findIndex((line) => line.product.id === p.id);
       if (idx >= 0) {
         return old.map((line, i) =>
-          i === idx ? { ...line, quantity: Math.min(10, line.quantity + 1) } : line,
+          i === idx ? { ...line, quantity: Math.min(10, line.quantity + qty) } : line,
         );
       }
-      return [...old, { product: p, quantity: 1 }];
+      return [...old, { product: p, quantity: Math.min(10, qty) }];
     });
-    showToast(`${p.title} added to cart`);
+    showToast(`${p.title} added to Cart`);
+  };
+
+  const updateCartTabQty = (productId: string, delta: number) => {
+    setCart((prev) =>
+      prev
+        .map((line) =>
+          line.product.id === productId
+            ? { ...line, quantity: Math.min(10, line.quantity + delta) }
+            : line,
+        )
+        .filter((line) => line.quantity > 0),
+    );
   };
 
   const toggleWishlist = (p: Product) => {
@@ -731,13 +883,12 @@ export default function App() {
     });
   };
 
-  const buyNow = (p: Product) => {
-    setQuickViewProduct(null);
+  const buyNow = (p: Product, qty = 1) => {
     setCheckoutFromCart(false);
-    setCheckoutItems([{ product: p, quantity: 1 }]);
+    setCheckoutItems([{ product: p, quantity: Math.min(10, qty) }]);
     setCheckoutForm((f) => ({
       ...f,
-      payment: p.type === "digital" ? "online" : "cod",
+      payment: "cod",
       paymentReference: "",
     }));
     setCheckoutError("");
@@ -747,14 +898,14 @@ export default function App() {
 
   const openCartCheckout = () => {
     if (!cart.length) {
-      showToast("Your shopping cart is empty", 2200);
+      showToast("Your cart is empty", 2200);
       return;
     }
     setCheckoutFromCart(true);
     setCheckoutItems(cart);
     setCheckoutForm((f) => ({
       ...f,
-      payment: cart.some((line) => line.product.type === "digital") ? "online" : "cod",
+      payment: "cod",
       paymentReference: "",
     }));
     setCheckoutError("");
@@ -786,27 +937,6 @@ export default function App() {
     () => checkoutItems.reduce((sum, line) => sum + line.quantity, 0),
     [checkoutItems],
   );
-
-  const hasPhysical = useMemo(
-    () => checkoutItems.some((line) => line.product.type === "physical"),
-    [checkoutItems],
-  );
-
-  const hasDigital = useMemo(
-    () => checkoutItems.some((line) => line.product.type === "digital"),
-    [checkoutItems],
-  );
-
-  const hasGameTopUp = useMemo(
-    () => checkoutItems.some((line) => Boolean(line.product.gameTopUp)),
-    [checkoutItems],
-  );
-
-  useEffect(() => {
-    if (hasDigital && checkoutForm.payment === "cod") {
-      setCheckoutForm((f) => ({ ...f, payment: "online" }));
-    }
-  }, [hasDigital, checkoutForm.payment]);
 
   useEffect(() => {
     if (!checkoutOpen || checkoutForm.payment !== "online" || !configured || !db || !checkoutItems.length) {
@@ -841,7 +971,7 @@ export default function App() {
     };
   }, [checkoutOpen, checkoutForm.payment, checkoutItems]);
 
-  // Handle Customer Login / Sign Up / Password Reset (Resilient against Firestore rule restrictions)
+  // Handle Customer Login / Sign Up / Password Reset
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
@@ -865,7 +995,6 @@ export default function App() {
         setAuthMessage("Password reset link has been sent to your email address.");
       } else if (authMode === "login") {
         const cred = await signInWithEmailAndPassword(auth, cleanEmail, authForm.password);
-        // Safely update or sync local profile cache
         try {
           if (db) {
             const snap = await getDoc(doc(db, "users", cred.user.uid));
@@ -884,9 +1013,7 @@ export default function App() {
               );
             }
           }
-        } catch {
-          // Never fail login if Firestore rules on users collection are restricted
-        }
+        } catch {}
         showToast("Welcome back to MEGAZONE!");
         setAuthMessage("Signed in successfully.");
       } else {
@@ -925,7 +1052,6 @@ export default function App() {
           );
         } catch {}
 
-        // Safely write user document to Firestore for Admin Panel visibility without breaking Sign Up if rules deny
         if (db) {
           try {
             await setDoc(
@@ -937,9 +1063,7 @@ export default function App() {
               },
               { merge: true },
             );
-          } catch {
-            // Firestore write is optional fallback; Auth account is already created
-          }
+          } catch {}
         }
 
         showToast("Account created! Welcome to MEGAZONE Pakistan.");
@@ -1011,9 +1135,7 @@ export default function App() {
           },
           { merge: true },
         );
-      } catch {
-        // Ignore if rules restrict user doc update; local profile is saved
-      }
+      } catch {}
     }
 
     setCheckoutForm((prev) => ({
@@ -1041,7 +1163,6 @@ export default function App() {
     }
 
     const qNorm = qRaw.toLowerCase();
-    // 1. Check in loaded userOrders + localOrders first
     const localMatch = allMyOrders.find(
       (o) =>
         o.orderNumber.toLowerCase() === qNorm ||
@@ -1054,7 +1175,6 @@ export default function App() {
       return;
     }
 
-    // 2. Query Firestore orders collection by orderNumber or phone if allowed
     if (configured && db) {
       setTrackingBusy(true);
       try {
@@ -1084,9 +1204,7 @@ export default function App() {
           setTrackingBusy(false);
           return;
         }
-      } catch {
-        // Fallback if query requires auth or index
-      }
+      } catch {}
       setTrackingBusy(false);
     }
 
@@ -1095,14 +1213,29 @@ export default function App() {
     );
   };
 
-  // Handle Become a Seller Submission (Saves to Firestore sellerApplications for Admin Panel approval)
+  // Handle Multi-Vendor Become a Seller Submission (Sends Gmail, Password & Terms Agreement to Super Admin Panel)
   const handleSellerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSellerError("");
     setSellerSuccess("");
 
+    const submitEmail = (sellerForm.email.trim() || currentUser?.email || "").trim();
     if (!sellerForm.shopName.trim() || !sellerForm.ownerName.trim() || !sellerForm.phone.trim()) {
       setSellerError("Please enter your Shop Name, Owner Full Name, and Mobile/WhatsApp Number.");
+      return;
+    }
+    if (!submitEmail) {
+      setSellerError("Please enter your Gmail / Email Address for your Seller Admin Panel login.");
+      return;
+    }
+    if (sellerForm.password.trim().length < 6) {
+      setSellerError(
+        "Please enter a Password (minimum 6 characters) that you will use to log in to the Seller Admin Panel once approved.",
+      );
+      return;
+    }
+    if (!sellerForm.acceptedTerms) {
+      setSellerError("Please read and accept the MEGAZONE Multi-Vendor Seller Terms & Conditions.");
       return;
     }
     if (sellerForm.plan === "lifetime_direct" && sellerForm.paymentReference.trim().length < 3) {
@@ -1119,18 +1252,17 @@ export default function App() {
     try {
       let sellerUid = currentUser?.uid || `seller_${Date.now()}`;
 
-      // If user is not logged in and provided email + password, create their Auth account first
       if (
         configured &&
         auth &&
         !currentUser &&
-        sellerForm.email.trim() &&
+        submitEmail &&
         sellerForm.password.length >= 6
       ) {
         try {
           const cred = await createUserWithEmailAndPassword(
             auth,
-            sellerForm.email.trim(),
+            submitEmail,
             sellerForm.password,
           );
           await updateProfile(cred.user, { displayName: sellerForm.ownerName.trim() });
@@ -1138,14 +1270,16 @@ export default function App() {
         } catch (authErr: any) {
           const code = String(authErr?.code || "");
           if (code.includes("email-already-in-use")) {
-            const cred = await signInWithEmailAndPassword(
-              auth,
-              sellerForm.email.trim(),
-              sellerForm.password,
-            );
-            sellerUid = cred.user.uid;
-          } else {
-            throw authErr;
+            try {
+              const cred = await signInWithEmailAndPassword(
+                auth,
+                submitEmail,
+                sellerForm.password,
+              );
+              sellerUid = cred.user.uid;
+            } catch {
+              // Proceed with submitting application to Firestore for Super Admin even if Auth password differs
+            }
           }
         }
       }
@@ -1155,7 +1289,9 @@ export default function App() {
         shopName: sellerForm.shopName.trim(),
         ownerName: sellerForm.ownerName.trim(),
         phone: sellerForm.phone.trim(),
-        email: sellerForm.email.trim() || currentUser?.email || "",
+        email: submitEmail,
+        adminEmail: submitEmail,
+        adminPassword: sellerForm.password,
         city: sellerForm.city.trim(),
         categoryFocus: sellerForm.categoryFocus,
         membershipPlan: sellerForm.plan,
@@ -1163,21 +1299,33 @@ export default function App() {
         lifetimeFeeAmount: lifetimeFeeSetting,
         paymentStatus:
           sellerForm.plan === "trial_30_days" ? "free_trial_active" : "pending_verification",
+        acceptedTerms: true,
         status: "pending",
       };
 
       if (configured && db) {
-        // 1. Write to sellerApplications/{sellerUid} for Admin Panel review & approval
         try {
           await setDoc(
             doc(db, "sellerApplications", sellerUid),
             {
               ...applicationPayload,
+              storeName: sellerForm.shopName.trim(),
+              name: sellerForm.ownerName.trim(),
+              password: sellerForm.password,
               membershipType: "lifetime",
               freeTrialDays: 30,
               trialStartsAt: now.toISOString(),
               currency: "PKR",
               paymentReference: sellerForm.paymentReference.trim(),
+              trxId: sellerForm.paymentReference.trim(),
+              transactionId: sellerForm.paymentReference.trim(),
+              lifetimeFeeAmount: lifetimeFeeSetting,
+              superAdminAccountUsed:
+                superAdminPaymentAccount.accountNumber ||
+                superAdminPaymentAccount.easypaisa ||
+                superAdminPaymentAccount.jazzcash ||
+                superAdminPaymentAccount.bankAccount ||
+                "Super Admin Account",
               accountTitle: sellerForm.accountTitle.trim() || sellerForm.ownerName.trim(),
               easypaisa: sellerForm.easypaisa.trim(),
               jazzcash: sellerForm.jazzcash.trim(),
@@ -1191,22 +1339,26 @@ export default function App() {
             { merge: true },
           );
         } catch {
-          // Fallback to auto-ID document in sellerApplications if doc ID rule differs
           try {
             const fallbackRef = doc(collection(db, "sellerApplications"));
             await setDoc(fallbackRef, {
               ...applicationPayload,
+              storeName: sellerForm.shopName.trim(),
+              name: sellerForm.ownerName.trim(),
+              password: sellerForm.password,
               accountTitle: sellerForm.accountTitle.trim() || sellerForm.ownerName.trim(),
               easypaisa: sellerForm.easypaisa.trim(),
               jazzcash: sellerForm.jazzcash.trim(),
               bankAccount: sellerForm.bankAccount.trim(),
               paymentReference: sellerForm.paymentReference.trim(),
+              trxId: sellerForm.paymentReference.trim(),
+              transactionId: sellerForm.paymentReference.trim(),
+              lifetimeFeeAmount: lifetimeFeeSetting,
               createdAt: serverTimestamp(),
             });
           } catch {}
         }
 
-        // 2. Also store seller payout details in settings/sellerPayment_{uid}
         try {
           await setDoc(
             doc(db, "settings", `sellerPayment_${sellerUid}`),
@@ -1223,14 +1375,13 @@ export default function App() {
           );
         } catch {}
 
-        // 3. Also sync sellerApplicationStatus on users/{uid} if permitted
         try {
           await setDoc(
             doc(db, "users", sellerUid),
             {
               uid: sellerUid,
               displayName: sellerForm.ownerName.trim(),
-              email: sellerForm.email.trim() || currentUser?.email || "",
+              email: submitEmail,
               phone: sellerForm.phone.trim(),
               city: sellerForm.city.trim(),
               shopName: sellerForm.shopName.trim(),
@@ -1248,9 +1399,9 @@ export default function App() {
       } catch {}
 
       setSellerSuccess(
-        `Your Seller Application for “${sellerForm.shopName.trim()}” has been sent to the MEGAZONE Admin Panel! Once the Admin approves your request and activates your Seller/Admin access, an official Approval Message will appear right here in your Profile.`,
+        `Your Multi-Vendor Seller Application for “${sellerForm.shopName.trim()}” (Login Gmail: ${submitEmail}) has been sent to the Super Admin Panel! Once the Super Admin adds your credentials and approves your status, you will receive your approval notification and Seller Admin Panel URL right here in your Profile.`,
       );
-      showToast("Seller application sent to Admin Panel!");
+      showToast("Seller application sent to Super Admin!");
     } catch (err: any) {
       setSellerError(
         err?.message || "Could not submit seller application right now. Please verify your details.",
@@ -1269,18 +1420,8 @@ export default function App() {
       setCheckoutError("Orders are temporarily unavailable. Please try again shortly.");
       return;
     }
-    if (hasPhysical && (checkoutForm.city.trim().length < 2 || checkoutForm.address.trim().length < 8)) {
-      setCheckoutError("Please enter your city and complete delivery address for physical products.");
-      return;
-    }
-    if (hasGameTopUp && checkoutForm.playerId.trim().length < 3) {
-      setCheckoutError("Please enter a valid game Player ID for your top-up.");
-      return;
-    }
-    if (hasDigital && checkoutForm.payment === "cod") {
-      setCheckoutError(
-        "Cash on Delivery is available for physical products only. Please choose online transfer for digital products.",
-      );
+    if (checkoutForm.city.trim().length < 2 || checkoutForm.address.trim().length < 8) {
+      setCheckoutError("Please enter your city and complete delivery address.");
       return;
     }
     if (checkoutForm.payment !== "cod" && checkoutForm.paymentReference.trim().length < 3) {
@@ -1297,12 +1438,12 @@ export default function App() {
       title: String(p.title ?? "Product").slice(0, 160),
       price: Number(p.price) || 0,
       quantity,
-      type: p.type === "digital" ? "digital" : "physical",
+      type: "physical",
       sellerId: p.sellerId,
       sellerName: String(p.sellerName ?? "Marketplace seller").slice(0, 100),
-      gameTopUp: Boolean(p.gameTopUp),
-      gameName: p.gameTopUp ? String(p.gameName ?? "").slice(0, 80) : "",
-      gamePackage: p.gameTopUp ? String(p.gamePackage ?? "").slice(0, 100) : "",
+      gameTopUp: false,
+      gameName: "",
+      gamePackage: "",
     }));
 
     const orderPayload = {
@@ -1313,9 +1454,9 @@ export default function App() {
       city: checkoutForm.city.trim(),
       address: checkoutForm.address.trim(),
       notes: checkoutForm.notes.trim(),
-      playerId: checkoutForm.playerId.trim(),
-      serverId: checkoutForm.serverId.trim(),
-      gameUsername: checkoutForm.gameUsername.trim(),
+      playerId: "",
+      serverId: "",
+      gameUsername: "",
       items: normalizedItems,
       total: checkoutTotal,
       currency: "PKR",
@@ -1360,9 +1501,9 @@ export default function App() {
         notes: orderPayload.notes,
         paymentMethod: orderPayload.paymentMethod,
         paymentReference: orderPayload.paymentReference,
-        playerId: orderPayload.playerId,
-        serverId: orderPayload.serverId,
-        gameUsername: orderPayload.gameUsername,
+        playerId: "",
+        serverId: "",
+        gameUsername: "",
         items: checkoutItems.map((line) => ({
           productId: line.product.id,
           quantity: line.quantity,
@@ -1404,9 +1545,9 @@ export default function App() {
             city: orderPayload.city,
             address: orderPayload.address,
             notes: orderPayload.notes,
-            playerId: orderPayload.playerId,
-            serverId: orderPayload.serverId,
-            gameUsername: orderPayload.gameUsername,
+            playerId: "",
+            serverId: "",
+            gameUsername: "",
             items: sellerItems,
             total: sellerItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
             currency: "PKR",
@@ -1440,51 +1581,46 @@ export default function App() {
   };
 
   const currentSlide = HERO_SLIDES[activeSlide];
+  const activePolicy = activePolicyKey ? LEGAL_POLICIES[activePolicyKey] : null;
 
   return (
     <div className="app-shell">
-      {/* Top Pakistani Flag Green Strip (Clean customer links — No "Become Seller" clutter at top) */}
+      {/* Top Pakistani Flag Green Strip (Scrolls naturally with page) */}
       <div className="promo-strip">
         <div className="promo-strip-inner">
           <span>
-            ☪ Pakistan’s Official White &amp; Green Marketplace · Nationwide COD &amp; Instant Game Top-Ups
+            ☪ MEGAZONE Pakistan · Official Multi-Vendor Online Shopping Marketplace
           </span>
           <div className="promo-links">
-            <button type="button" onClick={() => setActiveTab("categories")}>
-              Browse Categories
-            </button>
-            <span aria-hidden="true">·</span>
-            <button type="button" onClick={() => setActiveTab("orders")}>
-              Track My Orders {allMyOrders.length > 0 ? `(${allMyOrders.length})` : ""}
+            <button type="button" onClick={() => switchMainTab("orders")}>
+              Track Order {allMyOrders.length > 0 ? `(${allMyOrders.length})` : ""}
             </button>
             <span aria-hidden="true">·</span>
             <button
               type="button"
               onClick={() => {
                 setProfileSection("account");
-                setActiveTab("profile");
+                switchMainTab("profile");
               }}
             >
               {currentUser
                 ? `Hi, ${authForm.name || currentUser.displayName || currentUser.email?.split("@")[0]}`
-                : "Sign In / Create Account"}
+                : "Sign In / Sign Up"}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Strict 3-Zone Top Bar Contract (4 Core Marketplace Tabs: Home, Categories, My Orders, User Profile + Cart CTA) */}
+      {/* Main Header (Scrolls naturally on scroll — NO Cart button stuck next to MEGAZONE name) */}
       <header className="topbar">
         <div className="topbar-inner">
-          {/* Zone 1: Pakistani Flag Emblem + Brand Wordmark */}
           <a
             href="#top"
             className="brand-wordmark"
             onClick={(e) => {
               e.preventDefault();
+              setSelectedProduct(null);
               setActiveTab("home");
-              setActiveCategory("All");
-              setTypeFilter("all");
               setSearchQuery("");
             }}
           >
@@ -1492,50 +1628,60 @@ export default function App() {
               ☪
             </span>
             MEGA<span>ZONE</span>
+            <small className="brand-tagline">Online Shopping in Pakistan</small>
           </a>
 
-          {/* Zone 2: Clean 4-Tab Marketplace Navigation (Home, Categories, My Orders, User Profile) */}
-          <nav className="topbar-nav" aria-label="Main Marketplace Navigation">
+          {/* Styled 5-Tab Navigation Bar (Home, Categories, Cart, My Orders, Profile) */}
+          <nav className="topbar-nav" aria-label="Main Marketplace Tabs">
             <button
               type="button"
-              className={`topbar-link ${activeTab === "home" ? "active" : ""}`}
-              onClick={() => setActiveTab("home")}
+              className={`topbar-link ${activeTab === "home" && !selectedProduct ? "active" : ""}`}
+              onClick={() => switchMainTab("home")}
             >
-              Home
+              <Home size={15} />
+              <span>Home</span>
             </button>
             <button
               type="button"
-              className={`topbar-link ${activeTab === "categories" ? "active" : ""}`}
-              onClick={() => setActiveTab("categories")}
+              className={`topbar-link ${activeTab === "categories" && !selectedProduct ? "active" : ""}`}
+              onClick={() => switchMainTab("categories")}
             >
-              Categories
+              <LayoutGrid size={15} />
+              <span>Categories</span>
             </button>
             <button
               type="button"
-              className={`topbar-link ${activeTab === "orders" ? "active" : ""}`}
-              onClick={() => setActiveTab("orders")}
+              className={`topbar-link ${activeTab === "cart" && !selectedProduct ? "active" : ""}`}
+              onClick={() => switchMainTab("cart")}
             >
-              My Orders &amp; Track {allMyOrders.length > 0 ? `(${allMyOrders.length})` : ""}
+              <ShoppingBag size={15} />
+              <span>Cart</span>
+              <span className="tab-count-text">({totalCartCount})</span>
             </button>
             <button
               type="button"
-              className={`topbar-link ${activeTab === "profile" ? "active" : ""}`}
-              onClick={() => setActiveTab("profile")}
+              className={`topbar-link ${activeTab === "orders" && !selectedProduct ? "active" : ""}`}
+              onClick={() => switchMainTab("orders")}
             >
-              {currentUser ? "User Profile" : "Account / Sign In"}
+              <ClipboardList size={15} />
+              <span>My Orders</span>
+              {allMyOrders.length > 0 && (
+                <span className="tab-count-text">({allMyOrders.length})</span>
+              )}
+            </button>
+            <button
+              type="button"
+              className={`topbar-link ${activeTab === "profile" && !selectedProduct ? "active" : ""}`}
+              onClick={() => switchMainTab("profile")}
+            >
+              <UserRound size={15} />
+              <span>{currentUser ? "My Profile" : "Account / Login"}</span>
             </button>
           </nav>
-
-          {/* Zone 3: Primary Cart CTA */}
-          <button type="button" className="topbar-cta" onClick={openCartCheckout}>
-            <ShoppingBag size={16} />
-            <span>Cart</span>
-            <span className="topbar-cta-count">{totalCartCount}</span>
-          </button>
         </div>
       </header>
 
-      {/* Search Bar + Category Filter Bar */}
+      {/* Search Bar (Categories strip is NOT shown on Home; Categories are strictly in the Categories Tab) */}
       <div className="marketplace-search-bar">
         <div className="marketplace-search-inner">
           <form
@@ -1550,11 +1696,12 @@ export default function App() {
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
+                setSelectedProduct(null);
                 if (activeTab !== "home" && activeTab !== "categories") {
                   setActiveTab("home");
                 }
               }}
-              placeholder="Search in MEGAZONE Pakistan — e.g. Earbuds, PUBG UC, Free Fire Diamonds, Watches..."
+              placeholder="Search products on MEGAZONE Pakistan — e.g. Smart Watch, Earbuds, Sneakers, Kitchen Appliances..."
               aria-label="Search in MEGAZONE"
             />
             {searchQuery && (
@@ -1571,33 +1718,10 @@ export default function App() {
               <Search size={16} /> Search
             </button>
           </form>
-
-          <div className="quick-search-tags" aria-label="Popular categories">
-            {["All", ...categories].map((c) => (
-              <button
-                type="button"
-                key={c}
-                className={`quick-tag-btn ${activeCategory === c && (activeTab === "home" || activeTab === "categories") ? "active" : ""}`}
-                onClick={() => {
-                  setActiveCategory(c);
-                  if (c === "Digital Products") {
-                    setTypeFilter("digital");
-                  } else if (typeFilter === "digital" && c !== "Gaming") {
-                    setTypeFilter("all");
-                  }
-                  if (activeTab !== "home" && activeTab !== "categories") {
-                    setActiveTab("home");
-                  }
-                }}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
-      {/* Live Admin Approval Notification Banner (Shown automatically when Admin approves the user as Seller/Admin) */}
+      {/* Live Super Admin Approval Notification Banner */}
       {isSellerApproved && (
         <div
           style={{
@@ -1620,10 +1744,8 @@ export default function App() {
             }}
           >
             <span>
-              <strong>🎉 Seller Account Approved by Admin!</strong> Congratulations{" "}
-              {sellerApplication?.ownerName || authForm.name || currentUser?.displayName || "Partner"} — your store{" "}
-              <strong>{sellerApplication?.shopName || "MEGAZONE Seller Shop"}</strong> is now active with{" "}
-              {userRole === "super_admin" || userRole === "admin" ? "Admin & Seller" : "Verified Seller"} privileges.
+              <strong>🎉 Seller Account Approved by Super Admin!</strong> Your store{" "}
+              <strong>{sellerApplication?.shopName || "MEGAZONE Vendor Store"}</strong> is active. You can now access the Admin Panel with your registered Gmail &amp; Password.
             </span>
             <button
               type="button"
@@ -1638,7 +1760,7 @@ export default function App() {
                 fontSize: 12,
               }}
             >
-              View Seller Status
+              Open Seller Details &amp; URL
             </button>
           </div>
         </div>
@@ -1646,835 +1768,1202 @@ export default function App() {
 
       <main className="main-container" id="top">
         {/* =========================================================
-            TAB 1: HOME (Hero Bento + Guarantee Bar + Departments + Product Grid)
+            DARAZ / AMAZON-STYLE FULL PRODUCT DETAIL PAGE (When a product is clicked)
            ========================================================= */}
-        {activeTab === "home" && (
-          <>
-            <section className="hero-section">
-              <div className="hero-bento">
-                <div className="hero-carousel">
-                  <div className="hero-slide" key={currentSlide.id}>
+        {selectedProduct ? (
+          <section className="pdp-full-page">
+            <div className="pdp-breadcrumb-bar">
+              <button
+                type="button"
+                className="pdp-back-btn"
+                onClick={() => setSelectedProduct(null)}
+              >
+                <ArrowLeft size={16} /> Back to Products
+              </button>
+              <div className="pdp-breadcrumbs">
+                <span>MEGAZONE Pakistan</span>
+                <span aria-hidden="true">/</span>
+                <span>{selectedProduct.category || "Store"}</span>
+                <span aria-hidden="true">/</span>
+                <strong style={{ color: "#01411c" }}>{selectedProduct.title}</strong>
+              </div>
+            </div>
+
+            <div className="pdp-main-card">
+              {/* Column 1: Multi-Image Gallery */}
+              <div className="pdp-gallery-col">
+                <div className="pdp-main-stage">
+                  <button
+                    type="button"
+                    className={`wishlist-trigger ${wishlistIds.includes(selectedProduct.id) ? "active" : ""}`}
+                    onClick={() => toggleWishlist(selectedProduct)}
+                    aria-label="Save to wishlist"
+                  >
+                    <Heart
+                      size={18}
+                      fill={wishlistIds.includes(selectedProduct.id) ? "currentColor" : "none"}
+                    />
+                  </button>
+
+                  {selectedProduct.images?.[selectedImageIdx] || selectedProduct.images?.[0] ? (
                     <img
-                      className="hero-slide-img"
-                      src={currentSlide.image}
-                      alt={currentSlide.title}
+                      src={selectedProduct.images[selectedImageIdx] || selectedProduct.images[0]}
+                      alt={selectedProduct.title}
                       referrerPolicy="no-referrer"
                     />
-                    <div className="hero-slide-scrim">
-                      <span className="hero-kicker">{currentSlide.kicker}</span>
-                      <h1>{currentSlide.title}</h1>
-                      <p>{currentSlide.subtitle}</p>
-                      <div className="hero-slide-actions">
-                        <button
-                          type="button"
-                          className="btn-white-green"
-                          onClick={() => {
-                            setActiveCategory(currentSlide.category);
-                            setTypeFilter(currentSlide.typeFilter);
-                            scrollToCatalog();
-                          }}
-                        >
-                          {currentSlide.ctaText} <ArrowRight size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-outline-light"
-                          onClick={() => setActiveTab("orders")}
-                        >
-                          Track My Order
-                        </button>
-                      </div>
+                  ) : (
+                    <div className="product-fallback-art">
+                      <Package size={56} />
+                      <span>{selectedProduct.category}</span>
                     </div>
-                  </div>
+                  )}
+                </div>
 
-                  <div className="carousel-controls" role="tablist" aria-label="Hero slides">
-                    {HERO_SLIDES.map((s, idx) => (
+                {selectedProduct.images && selectedProduct.images.length > 1 && (
+                  <div className="pdp-thumb-row">
+                    {selectedProduct.images.map((imgUrl, idx) => (
                       <button
                         type="button"
-                        key={s.id}
-                        className={`carousel-dot ${activeSlide === idx ? "active" : ""}`}
-                        aria-label={`Show slide ${idx + 1}`}
-                        onClick={() => setActiveSlide(idx)}
-                      />
+                        key={`${selectedProduct.id}-img-${idx}`}
+                        className={`pdp-thumb-btn ${selectedImageIdx === idx ? "active" : ""}`}
+                        onClick={() => setSelectedImageIdx(idx)}
+                      >
+                        <img
+                          src={imgUrl}
+                          alt={`${selectedProduct.title} thumbnail ${idx + 1}`}
+                          referrerPolicy="no-referrer"
+                        />
+                      </button>
                     ))}
                   </div>
-                </div>
-
-                <div className="hero-side-stack">
-                  <article
-                    className="side-promo-card"
-                    onClick={() => {
-                      setActiveCategory("Gaming");
-                      setTypeFilter("all");
-                      scrollToCatalog();
-                    }}
-                  >
-                    <img
-                      src={gamingImg}
-                      alt="Gaming Top-Ups — PUBG UC & Free Fire Diamonds"
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="side-promo-scrim">
-                      <small>INSTANT PLAYER ID TOP-UP</small>
-                      <h3>PUBG UC, Free Fire &amp; Ludo Star</h3>
-                      <span>
-                        Top-Up Now <ArrowRight size={14} />
-                      </span>
-                    </div>
-                  </article>
-
-                  <article
-                    className="side-promo-card"
-                    onClick={() => {
-                      setActiveCategory("Digital Products");
-                      setTypeFilter("digital");
-                      scrollToCatalog();
-                    }}
-                  >
-                    <img
-                      src={digitalImg}
-                      alt="Digital Creator Assets & Downloads"
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="side-promo-scrim">
-                      <small>DIGITAL MARKETPLACE</small>
-                      <h3>Software, Templates &amp; Guides</h3>
-                      <span>
-                        Explore Digital <ArrowRight size={14} />
-                      </span>
-                    </div>
-                  </article>
-                </div>
+                )}
               </div>
 
-              <div className="guarantee-strip">
-                <div className="guarantee-item">
-                  <div className="guarantee-icon">
-                    <Truck size={20} />
-                  </div>
-                  <div>
-                    <strong>Nationwide COD</strong>
-                    <span>Cash on Delivery across Pakistan</span>
-                  </div>
+              {/* Column 2: Title, Rating, Price, Short Description, Quantity & Add to Cart / Buy Now */}
+              <div className="pdp-info-col">
+                <div className="product-meta">
+                  <span className="product-meta-seller">
+                    Sold by: {selectedProduct.sellerName || "MEGAZONE Verified Store"}
+                  </span>
+                  {selectedProduct.brand && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>Brand: {selectedProduct.brand}</span>
+                    </>
+                  )}
                 </div>
-                <div className="guarantee-item">
-                  <div className="guarantee-icon">
-                    <BadgeCheck size={20} />
-                  </div>
-                  <div>
-                    <strong>Verified Pakistani Stores</strong>
-                    <span>Authentic sellers &amp; direct support</span>
-                  </div>
-                </div>
-                <div className="guarantee-item">
-                  <div className="guarantee-icon">
-                    <ShieldCheck size={20} />
-                  </div>
-                  <div>
-                    <strong>Easypaisa &amp; JazzCash</strong>
-                    <span>Safe local wallet &amp; bank transfer</span>
-                  </div>
-                </div>
-                <div className="guarantee-item">
-                  <div className="guarantee-icon">
-                    <RotateCcw size={20} />
-                  </div>
-                  <div>
-                    <strong>Live Order Tracker</strong>
-                    <span>Real-time status from packing to door</span>
-                  </div>
-                </div>
-              </div>
-            </section>
 
-            {/* Section 2: Shop by Department */}
-            <section className="department-section">
-              <div className="section-bar">
-                <div>
-                  <h2>Shop by Department</h2>
-                  <p>Browse physical goods, instant game top-ups, and digital downloads</p>
+                <h1 className="pdp-MainTitle">{selectedProduct.title}</h1>
+
+                <div className="pdp-rating-strip">
+                  <span className="stars-gold">
+                    ★★★★★ {selectedProduct.rating ? selectedProduct.rating.toFixed(1) : "4.8"}
+                  </span>
+                  <span>·</span>
+                  <span>
+                    {selectedProduct.reviewCount
+                      ? `${selectedProduct.reviewCount} Verified Customer Ratings`
+                      : "Verified Quality Checked"}
+                  </span>
+                  <span>·</span>
+                  <strong style={{ color: "#008751" }}>
+                    {typeof selectedProduct.stock === "number" && selectedProduct.stock <= 0
+                      ? "Out of Stock"
+                      : "In Stock · Ready to Ship"}
+                  </strong>
                 </div>
-                <button
-                  type="button"
-                  className="btn-cart"
-                  onClick={() => setActiveTab("categories")}
-                >
-                  <LayoutGrid size={15} />
-                  <span>View All Categories</span>
-                </button>
-              </div>
-              <div className="dept-grid">
-                {DEPARTMENT_TILES.map((dept) => {
-                  const Icon = dept.icon;
-                  const isActive = activeCategory === dept.name;
-                  return (
+
+                <div className="pdp-price-box">
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                    <span className="pdp-big-price">{money(selectedProduct.price)}</span>
+                    {selectedProduct.compareAtPrice &&
+                      selectedProduct.compareAtPrice > selectedProduct.price && (
+                        <>
+                          <del className="product-compare" style={{ fontSize: 14 }}>
+                            {money(selectedProduct.compareAtPrice)}
+                          </del>
+                          <span className="discount-text" style={{ fontSize: 13 }}>
+                            Save{" "}
+                            {Math.round(
+                              ((selectedProduct.compareAtPrice - selectedProduct.price) /
+                                selectedProduct.compareAtPrice) *
+                                100,
+                            )}
+                            %
+                          </span>
+                        </>
+                      )}
+                  </div>
+                  <small style={{ display: "block", marginTop: 4, color: "#3b5244", fontSize: 12 }}>
+                    Inclusive of all taxes · Nationwide Cash on Delivery (COD) available
+                  </small>
+                </div>
+
+                <p className="pdp-short-desc">
+                  {selectedProduct.description ||
+                    "Authentic quality product fulfilled by a verified seller on MEGAZONE Pakistan. Enjoy doorstep Cash on Delivery and complete peace of mind."}
+                </p>
+
+                <div className="pdp-qty-row">
+                  <span className="pdp-qty-label">Quantity:</span>
+                  <div className="pdp-qty-stepper">
                     <button
                       type="button"
-                      key={dept.name}
-                      className={`dept-card ${isActive ? "active" : ""}`}
-                      onClick={() => {
-                        setActiveCategory(dept.name);
-                        setTypeFilter(dept.name === "Digital Products" ? "digital" : "all");
-                        scrollToCatalog();
-                      }}
+                      onClick={() => setPdpQuantity((q) => Math.max(1, q - 1))}
+                      aria-label="Decrease quantity"
                     >
-                      <div className="dept-icon">
-                        <Icon size={22} />
-                      </div>
-                      <strong>{dept.name}</strong>
+                      −
                     </button>
-                  );
-                })}
-              </div>
-            </section>
-
-            {/* Section 3: Live Marketplace Catalog */}
-            <section className="catalog-section" ref={catalogSectionRef}>
-              <div className="section-bar">
-                <div>
-                  <h2>
-                    {activeCategory === "All" ? "Featured Products & Deals" : activeCategory}
-                  </h2>
-                  <p>
-                    Showing {visible.length}{" "}
-                    {visible.length === 1 ? "verified product" : "verified products"}
-                    {searchQuery ? ` for “${searchQuery}”` : ""}
-                  </p>
+                    <span>{pdpQuantity}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPdpQuantity((q) => Math.min(10, q + 1))}
+                      aria-label="Increase quantity"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="catalog-toolbar">
-                <div className="segmented-group" role="tablist" aria-label="Product delivery type">
+                <div className="pdp-cta-row">
                   <button
                     type="button"
-                    className={`segmented-btn ${typeFilter === "all" ? "active" : ""}`}
-                    onClick={() => setTypeFilter("all")}
+                    className="btn-cart"
+                    onClick={() => add(selectedProduct, pdpQuantity)}
                   >
-                    All Items
+                    <ShoppingBag size={17} /> Add to Cart
                   </button>
                   <button
                     type="button"
-                    className={`segmented-btn ${typeFilter === "physical" ? "active" : ""}`}
-                    onClick={() => setTypeFilter("physical")}
+                    className="btn-buy-now"
+                    onClick={() => buyNow(selectedProduct, pdpQuantity)}
                   >
-                    Physical (COD)
-                  </button>
-                  <button
-                    type="button"
-                    className={`segmented-btn ${typeFilter === "digital" ? "active" : ""}`}
-                    onClick={() => setTypeFilter("digital")}
-                  >
-                    Digital &amp; Top-Ups
+                    Buy Now <ArrowRight size={17} />
                   </button>
                 </div>
-
-                <select
-                  className="sort-select"
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as SortOption)}
-                  aria-label="Sort products"
-                >
-                  <option value="featured">Sort: Featured</option>
-                  <option value="price-asc">Price: Low to High</option>
-                  <option value="price-desc">Price: High to Low</option>
-                  <option value="rating">Customer Rating</option>
-                </select>
               </div>
 
-              {loadingCatalog ? (
-                <div className="empty-catalog">
-                  <h3>Loading deals for you…</h3>
-                  <p>Fetching the latest products from MEGAZONE sellers.</p>
+              {/* Column 3: Delivery, Warranty & Seller Assurance Box */}
+              <aside className="pdp-delivery-col">
+                <h4>Delivery &amp; Service</h4>
+
+                <div className="pdp-service-row">
+                  <Truck size={18} color="#01411c" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <div>
+                    <strong>Nationwide Home Delivery</strong>
+                    <span>
+                      {selectedProduct.deliveryTime ||
+                        "Standard Courier Dispatch (2–5 Working Days across Pakistan)"}
+                    </span>
+                  </div>
                 </div>
-              ) : visible.length > 0 ? (
+
+                <div className="pdp-service-row">
+                  <BadgeCheck size={18} color="#01411c" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <div>
+                    <strong>Cash on Delivery Available</strong>
+                    <span>Pay cash at your doorstep when you receive your parcel</span>
+                  </div>
+                </div>
+
+                <div className="pdp-service-row">
+                  <RotateCcw size={18} color="#01411c" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <div>
+                    <strong>Return &amp; Warranty Policy</strong>
+                    <span>
+                      {selectedProduct.returnPolicy ||
+                        selectedProduct.warranty ||
+                        "7-Day Easy Check & Return Guarantee for damaged or incorrect items"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pdp-service-row">
+                  <Store size={18} color="#01411c" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <div>
+                    <strong>Sold by {selectedProduct.sellerName || "MEGAZONE Partner"}</strong>
+                    <span>Verified Pakistani Multi-Vendor Store</span>
+                  </div>
+                </div>
+              </aside>
+            </div>
+
+            {/* Full Product Description & Specifications Card (Set via Admin Panel) */}
+            <div className="pdp-details-card">
+              <h3>Product Description &amp; Details — {selectedProduct.title}</h3>
+              <div className="pdp-full-description">
+                {selectedProduct.description
+                  ? selectedProduct.description
+                  : `Experience reliable quality with ${selectedProduct.title}, brought to you by ${selectedProduct.sellerName || "our verified Pakistani store"} on MEGAZONE Pakistan.\n\n• Carefully inspected before dispatch for guaranteed customer satisfaction.\n• Nationwide courier delivery with Cash on Delivery (COD), Easypaisa, JazzCash, and Bank Transfer options.\n• Real-time order tracking included from confirmation to doorstep delivery.`}
+              </div>
+
+              {Array.isArray(selectedProduct.highlights) && selectedProduct.highlights.length > 0 && (
+                <div style={{ marginBottom: 24 }}>
+                  <h4 style={{ margin: "0 0 10px", color: "#01411c" }}>Key Highlights</h4>
+                  <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.7, fontSize: 14 }}>
+                    {selectedProduct.highlights.map((h, i) => (
+                      <li key={i}>{h}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <h3>Product Specifications</h3>
+              <div className="pdp-specs-grid">
+                <div className="pdp-spec-box">
+                  <span>Category</span>
+                  <strong>{selectedProduct.category || "General Merchandise"}</strong>
+                </div>
+                <div className="pdp-spec-box">
+                  <span>Brand / Store</span>
+                  <strong>{selectedProduct.brand || selectedProduct.sellerName || "MEGAZONE Verified"}</strong>
+                </div>
+                <div className="pdp-spec-box">
+                  <span>Delivery Option</span>
+                  <strong>Nationwide Cash on Delivery (COD)</strong>
+                </div>
+                <div className="pdp-spec-box">
+                  <span>Payment Methods</span>
+                  <strong>COD, Easypaisa, JazzCash &amp; Bank</strong>
+                </div>
+                {selectedProduct.sku && (
+                  <div className="pdp-spec-box">
+                    <span>SKU / Model</span>
+                    <strong>{selectedProduct.sku}</strong>
+                  </div>
+                )}
+                {selectedProduct.warranty && (
+                  <div className="pdp-spec-box">
+                    <span>Warranty</span>
+                    <strong>{selectedProduct.warranty}</strong>
+                  </div>
+                )}
+                {selectedProduct.specifications &&
+                  !Array.isArray(selectedProduct.specifications) &&
+                  Object.entries(selectedProduct.specifications).map(([k, v]) => (
+                    <div className="pdp-spec-box" key={k}>
+                      <span>{k}</span>
+                      <strong>{String(v)}</strong>
+                    </div>
+                  ))}
+                {Array.isArray(selectedProduct.specifications) &&
+                  selectedProduct.specifications.map((row, idx) => (
+                    <div className="pdp-spec-box" key={idx}>
+                      <span>{row.label}</span>
+                      <strong>{row.value}</strong>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {relatedProducts.length > 0 && (
+              <div>
+                <div className="section-bar">
+                  <div>
+                    <h2>Similar Products</h2>
+                    <p>More items you might also like</p>
+                  </div>
+                </div>
                 <div className="product-grid">
-                  {visible.map((p) => (
+                  {relatedProducts.map((p) => (
                     <ProductCard
                       key={p.id}
                       product={p}
-                      onAdd={add}
-                      onBuy={buyNow}
+                      onAdd={(item) => add(item, 1)}
+                      onBuy={(item) => buyNow(item, 1)}
                       onWishlist={toggleWishlist}
-                      onQuickView={(item) => setQuickViewProduct(item)}
+                      onOpenProduct={openProductDetail}
                       isWishlisted={wishlistIds.includes(p.id)}
                     />
                   ))}
                 </div>
-              ) : (
-                <div className="empty-catalog">
-                  <Search size={30} color="#01411c" />
-                  <h3>
-                    {searchQuery || activeCategory !== "All" || typeFilter !== "all"
-                      ? "No matching products found"
-                      : "New seller arrivals coming soon"}
-                  </h3>
-                  <p>
-                    {searchQuery || activeCategory !== "All" || typeFilter !== "all"
-                      ? "Try clearing your search or selecting another category to explore more items."
-                      : "Verified sellers are adding fresh products to MEGAZONE Pakistan."}
-                  </p>
-                  {(searchQuery || activeCategory !== "All" || typeFilter !== "all") && (
+              </div>
+            )}
+          </section>
+        ) : (
+          <>
+            {/* =========================================================
+                TAB 1: HOME (Direct Daraz-Style Product Feed — No COD / Hero Clutter)
+               ========================================================= */}
+            {activeTab === "home" && (
+              <section className="catalog-section" ref={catalogSectionRef} style={{ marginTop: 4 }}>
+                <div className="section-bar">
+                  <div>
+                    <h2>Just For You · All Products</h2>
+                    <p>
+                      {loadingCatalog
+                        ? "Loading marketplace products…"
+                        : `Showing ${homeVisibleProducts.length} ${
+                            homeVisibleProducts.length === 1 ? "product" : "products"
+                          }${searchQuery ? ` for “${searchQuery}”` : ""} — tap any product for full details`}
+                    </p>
+                  </div>
+
+                  <select
+                    className="sort-select"
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as SortOption)}
+                    aria-label="Sort products"
+                  >
+                    <option value="featured">Sort: Best Match</option>
+                    <option value="price-asc">Price: Low to High</option>
+                    <option value="price-desc">Price: High to Low</option>
+                    <option value="rating">Top Rated</option>
+                  </select>
+                </div>
+
+                {loadingCatalog ? (
+                  <div className="empty-catalog">
+                    <h3>Loading products for you…</h3>
+                    <p>Fetching live products from MEGAZONE Pakistan.</p>
+                  </div>
+                ) : homeVisibleProducts.length > 0 ? (
+                  <div className="product-grid">
+                    {homeVisibleProducts.map((p) => (
+                      <ProductCard
+                        key={p.id}
+                        product={p}
+                        onAdd={(item) => add(item, 1)}
+                        onBuy={(item) => buyNow(item, 1)}
+                        onWishlist={toggleWishlist}
+                        onOpenProduct={openProductDetail}
+                        isWishlisted={wishlistIds.includes(p.id)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-catalog">
+                    <Search size={30} color="#01411c" />
+                    <h3>
+                      {searchQuery ? "No matching products found" : "No Products Published Yet"}
+                    </h3>
+                    <p>
+                      {searchQuery
+                        ? "Try clearing your search to explore all available products."
+                        : "Products added by sellers and admins from the Admin Panel will appear directly right here like Daraz."}
+                    </p>
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        className="btn-green-solid"
+                        onClick={() => setSearchQuery("")}
+                      >
+                        Clear Search
+                      </button>
+                    )}
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* =========================================================
+                TAB 2: DEDICATED CATEGORIES TAB (All Category Browsing Lives Here)
+               ========================================================= */}
+            {activeTab === "categories" && (
+              <section className="tab-page-section">
+                <div className="section-bar">
+                  <div>
+                    <h2>Shop by Category</h2>
+                    <p>Select any department below to browse products in that category</p>
+                  </div>
+                  {selectedCategoryInTab !== "All" && (
                     <button
                       type="button"
-                      className="btn-green-solid"
-                      onClick={() => {
-                        setSearchQuery("");
-                        setActiveCategory("All");
-                        setTypeFilter("all");
-                      }}
+                      className="btn-cart"
+                      onClick={() => setSelectedCategoryInTab("All")}
                     >
-                      View All Products
+                      Show All Categories
                     </button>
                   )}
                 </div>
-              )}
-            </section>
-          </>
-        )}
 
-        {/* =========================================================
-            TAB 2: CATEGORIES EXPLORER (Daraz-Style Department Directory + Filtered Grid)
-           ========================================================= */}
-        {activeTab === "categories" && (
-          <section className="tab-page-section">
-            <div className="section-bar">
-              <div>
-                <h2>MEGAZONE Categories Directory</h2>
-                <p>Select any department or game top-up category to filter products immediately</p>
-              </div>
-              {activeCategory !== "All" && (
-                <button
-                  type="button"
-                  className="btn-cart"
-                  onClick={() => {
-                    setActiveCategory("All");
-                    setTypeFilter("all");
-                  }}
-                >
-                  Show All Categories
-                </button>
-              )}
-            </div>
-
-            <div className="dept-grid" style={{ marginBottom: 24 }}>
-              {DEPARTMENT_TILES.map((dept) => {
-                const Icon = dept.icon;
-                const isActive = activeCategory === dept.name;
-                return (
-                  <button
-                    type="button"
-                    key={dept.name}
-                    className={`dept-card ${isActive ? "active" : ""}`}
-                    onClick={() => {
-                      setActiveCategory(dept.name);
-                      setTypeFilter(dept.name === "Digital Products" ? "digital" : "all");
-                    }}
-                  >
-                    <div className="dept-icon">
-                      <Icon size={22} />
-                    </div>
-                    <strong>{dept.name}</strong>
-                    <span style={{ fontSize: 11, color: "#647a6d" }}>{dept.desc}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="catalog-toolbar">
-              <div className="segmented-group">
-                {["All", ...categories].map((c) => (
-                  <button
-                    type="button"
-                    key={c}
-                    className={`segmented-btn ${activeCategory === c ? "active" : ""}`}
-                    onClick={() => setActiveCategory(c)}
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
-
-              <select
-                className="sort-select"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortOption)}
-              >
-                <option value="featured">Sort: Featured</option>
-                <option value="price-asc">Price: Low to High</option>
-                <option value="price-desc">Price: High to Low</option>
-                <option value="rating">Customer Rating</option>
-              </select>
-            </div>
-
-            {visible.length > 0 ? (
-              <div className="product-grid">
-                {visible.map((p) => (
-                  <ProductCard
-                    key={p.id}
-                    product={p}
-                    onAdd={add}
-                    onBuy={buyNow}
-                    onWishlist={toggleWishlist}
-                    onQuickView={(item) => setQuickViewProduct(item)}
-                    isWishlisted={wishlistIds.includes(p.id)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="empty-catalog">
-                <LayoutGrid size={30} color="#01411c" />
-                <h3>No products in “{activeCategory}” yet</h3>
-                <p>Choose another category above or check back soon for new arrivals.</p>
-                <button
-                  type="button"
-                  className="btn-green-solid"
-                  onClick={() => {
-                    setActiveCategory("All");
-                    setTypeFilter("all");
-                  }}
-                >
-                  Browse All Categories
-                </button>
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* =========================================================
-            TAB 3: MY ORDERS & LIVE ORDER TRACKING SYSTEM
-           ========================================================= */}
-        {activeTab === "orders" && (
-          <section className="tab-page-section">
-            <div className="tracker-search-card">
-              <div className="section-bar" style={{ marginBottom: 6 }}>
-                <div>
-                  <h2>Track Your MEGAZONE Order</h2>
-                  <p>
-                    Enter your Order ID (e.g. <strong>MZ-12345678</strong>) or Mobile Number to see real-time packing, shipping, and delivery progress.
-                  </p>
+                <div className="dept-grid" style={{ marginBottom: 24 }}>
+                  {DEPARTMENT_TILES.map((dept) => {
+                    const Icon = dept.icon;
+                    const isActive = selectedCategoryInTab === dept.name;
+                    return (
+                      <button
+                        type="button"
+                        key={dept.name}
+                        className={`dept-card ${isActive ? "active" : ""}`}
+                        onClick={() => setSelectedCategoryInTab(dept.name)}
+                      >
+                        <div className="dept-icon">
+                          <Icon size={22} />
+                        </div>
+                        <strong>{dept.name}</strong>
+                        <span style={{ fontSize: 11, color: "#647a6d" }}>{dept.desc}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
 
-              <form className="tracker-search-form" onSubmit={handleTrackOrderSearch}>
-                <input
-                  value={trackingQuery}
-                  onChange={(e) => setTrackingQuery(e.target.value)}
-                  placeholder="Enter Order ID (MZ-...) or Mobile Number (03XX...)"
-                  aria-label="Order ID or Phone Number"
-                />
-                <button type="submit" className="btn-green-solid" disabled={trackingBusy}>
-                  <Truck size={16} />
-                  <span>{trackingBusy ? "Searching…" : "Track Order"}</span>
-                </button>
-                {trackedOrderResult && (
-                  <button
-                    type="button"
-                    className="btn-cart"
-                    onClick={() => {
-                      setTrackedOrderResult(null);
-                      setTrackingQuery("");
-                    }}
+                <div className="catalog-toolbar">
+                  <div className="segmented-group">
+                    {["All", ...availableCategories].map((c) => (
+                      <button
+                        type="button"
+                        key={c}
+                        className={`segmented-btn ${selectedCategoryInTab === c ? "active" : ""}`}
+                        onClick={() => setSelectedCategoryInTab(c)}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+
+                  <select
+                    className="sort-select"
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as SortOption)}
                   >
-                    Clear
-                  </button>
+                    <option value="featured">Sort: Featured</option>
+                    <option value="price-asc">Price: Low to High</option>
+                    <option value="price-desc">Price: High to Low</option>
+                    <option value="rating">Customer Rating</option>
+                  </select>
+                </div>
+
+                {categoryTabProducts.length > 0 ? (
+                  <div className="product-grid">
+                    {categoryTabProducts.map((p) => (
+                      <ProductCard
+                        key={p.id}
+                        product={p}
+                        onAdd={(item) => add(item, 1)}
+                        onBuy={(item) => buyNow(item, 1)}
+                        onWishlist={toggleWishlist}
+                        onOpenProduct={openProductDetail}
+                        isWishlisted={wishlistIds.includes(p.id)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-catalog">
+                    <LayoutGrid size={30} color="#01411c" />
+                    <h3>No products in “{selectedCategoryInTab}” yet</h3>
+                    <p>Products added to this category from the Admin Panel will appear here.</p>
+                    <button
+                      type="button"
+                      className="btn-green-solid"
+                      onClick={() => setSelectedCategoryInTab("All")}
+                    >
+                      View All Categories
+                    </button>
+                  </div>
                 )}
-              </form>
+              </section>
+            )}
 
-              {trackingError && <div className="checkout-error">{trackingError}</div>}
+            {/* =========================================================
+                TAB 3: DEDICATED SHOPPING CART TAB
+               ========================================================= */}
+            {activeTab === "cart" && (
+              <section className="tab-page-section">
+                <div className="section-bar">
+                  <div>
+                    <h2>My Shopping Cart ({totalCartCount})</h2>
+                    <p>Review your selected items, adjust quantities, or proceed to Buy Now</p>
+                  </div>
+                  {cart.length > 0 && (
+                    <button
+                      type="button"
+                      className="btn-cart"
+                      onClick={() => switchMainTab("home")}
+                    >
+                      + Add More Products
+                    </button>
+                  )}
+                </div>
 
-              {trackedOrderResult && (
-                <div style={{ marginTop: 20 }}>
-                  <article className="order-card" style={{ borderColor: "#006b3f" }}>
-                    <div className="order-card-head">
-                      <strong>Tracking Order #{trackedOrderResult.orderNumber}</strong>
-                      <div className="order-card-meta">
-                        <span>Placed: {trackedOrderResult.createdAtText}</span>
-                        <span>·</span>
-                        <span>
-                          Payment: {trackedOrderResult.paymentStatus.replace("_", " ").toUpperCase()}
-                        </span>
-                        <span>·</span>
-                        <strong>{money(trackedOrderResult.total)}</strong>
-                      </div>
-                    </div>
-
-                    <div className="order-stepper">
-                      {ORDER_STEPS.map((st, idx) => {
-                        const currentIdx = getOrderStepIndex(trackedOrderResult.orderStatus);
-                        const isDone = idx <= currentIdx;
-                        return (
-                          <div key={st.key} className={`step-node ${isDone ? "done" : ""}`}>
-                            <div className="step-circle">{isDone ? "✓" : idx + 1}</div>
-                            <span>{st.label}</span>
+                {cart.length === 0 ? (
+                  <div className="empty-catalog">
+                    <ShoppingBag size={34} color="#01411c" />
+                    <h3>Your MEGAZONE Cart is Empty</h3>
+                    <p>
+                      Browse our online store and tap “Add to Cart” or “Buy Now” on any product to start your order.
+                    </p>
+                    <button
+                      type="button"
+                      className="btn-green-solid"
+                      onClick={() => switchMainTab("home")}
+                    >
+                      Explore Products <ArrowRight size={15} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="cart-layout">
+                    <div className="cart-list-card">
+                      {cart.map(({ product: item, quantity }) => (
+                        <div className="cart-row" key={item.id}>
+                          <div
+                            className="cart-row-thumb"
+                            onClick={() => openProductDetail(item)}
+                          >
+                            {item.images?.[0] ? (
+                              <img
+                                src={item.images[0]}
+                                alt={item.title}
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <Package size={28} color="#01411c" />
+                            )}
                           </div>
-                        );
-                      })}
-                    </div>
 
-                    <div className="order-card-items">
-                      {trackedOrderResult.items.map((item, idx) => (
-                        <div
-                          key={`${trackedOrderResult.id}-track-${idx}`}
-                          style={{ display: "flex", justifyContent: "space-between", gap: 12 }}
-                        >
-                          <span>
-                            {item.title} × {item.quantity || 1} ({item.sellerName})
-                          </span>
-                          <strong className="tabular-nums">
-                            {money((item.price || 0) * (item.quantity || 1))}
-                          </strong>
+                          <div className="cart-row-info">
+                            <h4 onClick={() => openProductDetail(item)}>{item.title}</h4>
+                            <small>
+                              Sold by {item.sellerName || "Verified Seller"} · {money(item.price)} each
+                            </small>
+                            <div className="summary-qty-controls">
+                              <button
+                                type="button"
+                                className="summary-qty-btn"
+                                onClick={() => updateCartTabQty(item.id, -1)}
+                                aria-label="Decrease quantity"
+                              >
+                                −
+                              </button>
+                              <span
+                                className="tabular-nums"
+                                style={{ fontWeight: 700, minWidth: 22, textAlign: "center" }}
+                              >
+                                {quantity}
+                              </span>
+                              <button
+                                type="button"
+                                className="summary-qty-btn"
+                                onClick={() => updateCartTabQty(item.id, 1)}
+                                aria-label="Increase quantity"
+                              >
+                                +
+                              </button>
+                              <button
+                                type="button"
+                                className="summary-qty-btn summary-qty-remove"
+                                onClick={() => updateCartTabQty(item.id, -quantity)}
+                                aria-label="Remove item"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="cart-row-price">
+                            {money(item.price * quantity)}
+                          </div>
                         </div>
                       ))}
                     </div>
-                  </article>
-                </div>
-              )}
-            </div>
 
-            <div className="section-bar">
-              <div>
-                <h2>My Orders History ({allMyOrders.length})</h2>
-                <p>All orders placed from this device or your signed-in MEGAZONE account</p>
-              </div>
-            </div>
+                    <aside className="checkout-summary">
+                      <div className="summary-title">
+                        <ShoppingBag size={18} />
+                        <b>Cart Summary</b>
+                        <span>
+                          {totalCartCount} {totalCartCount === 1 ? "item" : "items"}
+                        </span>
+                      </div>
 
-            {allMyOrders.length === 0 ? (
-              <div className="empty-catalog">
-                <ClipboardList size={32} color="#01411c" />
-                <h3>You haven’t placed any orders yet</h3>
-                <p>
-                  Once you buy a physical item, game top-up, or digital product, live step-by-step tracking will appear right here.
-                </p>
-                <button
-                  type="button"
-                  className="btn-green-solid"
-                  onClick={() => setActiveTab("home")}
-                >
-                  Start Shopping <ArrowRight size={15} />
-                </button>
-              </div>
-            ) : (
-              <div className="orders-list">
-                {allMyOrders.map((ord) => {
-                  const stepIdx = getOrderStepIndex(ord.orderStatus);
-                  return (
-                    <article className="order-card" key={ord.id}>
-                      <div className="order-card-head">
-                        <strong>Order #{ord.orderNumber}</strong>
-                        <div className="order-card-meta">
-                          <span>Date: {ord.createdAtText}</span>
-                          <span>·</span>
-                          <span>Status: {ord.orderStatus.toUpperCase()}</span>
-                          <span>·</span>
-                          <span>
-                            Payment: {ord.paymentStatus.replace("_", " ").toUpperCase()}
-                          </span>
+                      <div className="summary-items">
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5 }}>
+                          <span>Items Subtotal</span>
+                          <strong className="tabular-nums">{money(cartTotalAmount)}</strong>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5 }}>
+                          <span>Payment Options</span>
+                          <strong>COD / Easypaisa / JazzCash</strong>
                         </div>
                       </div>
 
-                      {/* 5-Stage Visual Order Progress Stepper */}
-                      <div className="order-stepper">
-                        {ORDER_STEPS.map((st, idx) => {
-                          const isDone = idx <= stepIdx;
-                          return (
-                            <div key={st.key} className={`step-node ${isDone ? "done" : ""}`}>
-                              <div className="step-circle">{isDone ? "✓" : idx + 1}</div>
-                              <span>{st.label}</span>
-                            </div>
-                          );
-                        })}
+                      <div className="summary-total">
+                        <span>Total Payable</span>
+                        <strong>{money(cartTotalAmount)}</strong>
                       </div>
 
-                      <div className="order-card-items">
-                        {ord.items.map((item, idx) => (
-                          <div
-                            key={`${ord.id}-${idx}`}
-                            style={{ display: "flex", justifyContent: "space-between", gap: 12 }}
-                          >
-                            <span>
-                              {item.title} × {item.quantity || 1} ({item.sellerName})
-                            </span>
-                            <strong className="tabular-nums">
-                              {money((item.price || 0) * (item.quantity || 1))}
-                            </strong>
-                          </div>
-                        ))}
+                      <div className="summary-safe">
+                        <ShieldCheck size={18} />
+                        <span>
+                          Every order comes with a live MEGAZONE tracking ID and 7-day easy return protection.
+                        </span>
                       </div>
 
-                      <div
-                        style={{
-                          marginTop: 12,
-                          paddingTop: 10,
-                          borderTop: "1px solid #dce7e0",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          flexWrap: "wrap",
-                          gap: 8,
-                          fontSize: 13.5,
+                      <button
+                        type="button"
+                        className="checkout-submit"
+                        onClick={openCartCheckout}
+                      >
+                        Proceed to Buy Now ({money(cartTotalAmount)}) <ArrowRight size={16} />
+                      </button>
+                    </aside>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* =========================================================
+                TAB 4: MY ORDERS & LIVE ORDER TRACKING SYSTEM
+               ========================================================= */}
+            {activeTab === "orders" && (
+              <section className="tab-page-section">
+                <div className="tracker-search-card">
+                  <div className="section-bar" style={{ marginBottom: 6 }}>
+                    <div>
+                      <h2>Track Your MEGAZONE Order</h2>
+                      <p>
+                        Enter your Order ID (e.g. <strong>MZ-12345678</strong>) or Mobile Number to see real-time packing, shipping, and delivery progress.
+                      </p>
+                    </div>
+                  </div>
+
+                  <form className="tracker-search-form" onSubmit={handleTrackOrderSearch}>
+                    <input
+                      value={trackingQuery}
+                      onChange={(e) => setTrackingQuery(e.target.value)}
+                      placeholder="Enter Order ID (MZ-...) or Mobile Number (03XX...)"
+                      aria-label="Order ID or Phone Number"
+                    />
+                    <button type="submit" className="btn-green-solid" disabled={trackingBusy}>
+                      <Truck size={16} />
+                      <span>{trackingBusy ? "Searching…" : "Track Order"}</span>
+                    </button>
+                    {trackedOrderResult && (
+                      <button
+                        type="button"
+                        className="btn-cart"
+                        onClick={() => {
+                          setTrackedOrderResult(null);
+                          setTrackingQuery("");
                         }}
                       >
-                        <span>
-                          Method:{" "}
-                          {ord.paymentMethod === "cod" ? "Cash on Delivery" : "Online Transfer"}
-                          {ord.city ? ` · Delivery to ${ord.city}` : ""}
-                        </span>
-                        <strong className="tabular-nums" style={{ color: "#01411c", fontSize: 16 }}>
-                          Total: {money(ord.total)}
-                        </strong>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        )}
+                        Clear
+                      </button>
+                    )}
+                  </form>
 
-        {/* =========================================================
-            TAB 4: DARAZ-STYLE USER PROFILE & SETTINGS HUB
-            (Includes Account Auth/Profile, Saved Wishlist, & Become a Seller Settings)
-           ========================================================= */}
-        {activeTab === "profile" && (
-          <section className="tab-page-section">
-            <div className="profile-layout">
-              {/* Left Sidebar: Daraz-Style User Card & Settings Navigation */}
-              <aside className="profile-sidebar-card">
-                <div className="profile-hero-banner">
-                  <div className="profile-avatar">
-                    {(authForm.name || currentUser?.displayName || currentUser?.email || "M")
-                      .charAt(0)
-                      .toUpperCase()}
-                  </div>
-                  <h3>
-                    {currentUser
-                      ? authForm.name || currentUser.displayName || "MEGAZONE Member"
-                      : "Welcome to MEGAZONE"}
-                  </h3>
-                  <p>
-                    {currentUser
-                      ? currentUser.email
-                      : "Sign in to sync your profile, orders & seller settings"}
-                  </p>
-                  {isSellerApproved && (
-                    <div
-                      style={{
-                        marginTop: 10,
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: "#9ef0c4",
-                      }}
-                    >
-                      <CheckCircle2 size={15} /> Approved Seller / Admin Partner
+                  {trackingError && <div className="checkout-error">{trackingError}</div>}
+
+                  {trackedOrderResult && (
+                    <div style={{ marginTop: 20 }}>
+                      <article className="order-card" style={{ borderColor: "#006b3f" }}>
+                        <div className="order-card-head">
+                          <strong>Tracking Order #{trackedOrderResult.orderNumber}</strong>
+                          <div className="order-card-meta">
+                            <span>Placed: {trackedOrderResult.createdAtText}</span>
+                            <span>·</span>
+                            <span>
+                              Payment: {trackedOrderResult.paymentStatus.replace("_", " ").toUpperCase()}
+                            </span>
+                            <span>·</span>
+                            <strong>{money(trackedOrderResult.total)}</strong>
+                          </div>
+                        </div>
+
+                        <div className="order-stepper">
+                          {ORDER_STEPS.map((st, idx) => {
+                            const currentIdx = getOrderStepIndex(trackedOrderResult.orderStatus);
+                            const isDone = idx <= currentIdx;
+                            return (
+                              <div key={st.key} className={`step-node ${isDone ? "done" : ""}`}>
+                                <div className="step-circle">{isDone ? "✓" : idx + 1}</div>
+                                <span>{st.label}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <div className="order-card-items">
+                          {trackedOrderResult.items.map((item, idx) => (
+                            <div
+                              key={`${trackedOrderResult.id}-track-${idx}`}
+                              style={{ display: "flex", justifyContent: "space-between", gap: 12 }}
+                            >
+                              <span>
+                                {item.title} × {item.quantity || 1} ({item.sellerName})
+                              </span>
+                              <strong className="tabular-nums">
+                                {money((item.price || 0) * (item.quantity || 1))}
+                              </strong>
+                            </div>
+                          ))}
+                        </div>
+                      </article>
                     </div>
                   )}
                 </div>
 
-                <div className="profile-menu-list">
-                  <button
-                    type="button"
-                    className={`profile-menu-item ${profileSection === "account" ? "active" : ""}`}
-                    onClick={() => setProfileSection("account")}
-                  >
-                    <div className="profile-menu-left">
-                      <div className="profile-menu-icon">
-                        <UserRound size={18} />
+                <div className="section-bar">
+                  <div>
+                    <h2>My Orders History ({allMyOrders.length})</h2>
+                    <p>All orders placed from this device or your signed-in MEGAZONE account</p>
+                  </div>
+                </div>
+
+                {allMyOrders.length === 0 ? (
+                  <div className="empty-catalog">
+                    <ClipboardList size={32} color="#01411c" />
+                    <h3>You haven’t placed any orders yet</h3>
+                    <p>
+                      Once you buy a product, live step-by-step order tracking will appear right here.
+                    </p>
+                    <button
+                      type="button"
+                      className="btn-green-solid"
+                      onClick={() => switchMainTab("home")}
+                    >
+                      Start Shopping <ArrowRight size={15} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="orders-list">
+                    {allMyOrders.map((ord) => {
+                      const stepIdx = getOrderStepIndex(ord.orderStatus);
+                      return (
+                        <article className="order-card" key={ord.id}>
+                          <div className="order-card-head">
+                            <strong>Order #{ord.orderNumber}</strong>
+                            <div className="order-card-meta">
+                              <span>Date: {ord.createdAtText}</span>
+                              <span>·</span>
+                              <span>Status: {ord.orderStatus.toUpperCase()}</span>
+                              <span>·</span>
+                              <span>
+                                Payment: {ord.paymentStatus.replace("_", " ").toUpperCase()}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="order-stepper">
+                            {ORDER_STEPS.map((st, idx) => {
+                              const isDone = idx <= stepIdx;
+                              return (
+                                <div key={st.key} className={`step-node ${isDone ? "done" : ""}`}>
+                                  <div className="step-circle">{isDone ? "✓" : idx + 1}</div>
+                                  <span>{st.label}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div className="order-card-items">
+                            {ord.items.map((item, idx) => (
+                              <div
+                                key={`${ord.id}-${idx}`}
+                                style={{ display: "flex", justifyContent: "space-between", gap: 12 }}
+                              >
+                                <span>
+                                  {item.title} × {item.quantity || 1} ({item.sellerName})
+                                </span>
+                                <strong className="tabular-nums">
+                                  {money((item.price || 0) * (item.quantity || 1))}
+                                </strong>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div
+                            style={{
+                              marginTop: 12,
+                              paddingTop: 10,
+                              borderTop: "1px solid #dce7e0",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              flexWrap: "wrap",
+                              gap: 8,
+                              fontSize: 13.5,
+                            }}
+                          >
+                            <span>
+                              Method:{" "}
+                              {ord.paymentMethod === "cod" ? "Cash on Delivery" : "Online Transfer"}
+                              {ord.city ? ` · Delivery to ${ord.city}` : ""}
+                            </span>
+                            <strong className="tabular-nums" style={{ color: "#01411c", fontSize: 16 }}>
+                              Total: {money(ord.total)}
+                            </strong>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* =========================================================
+                TAB 5: RESPONSIVE USER PROFILE & MULTI-VENDOR SELLER HUB
+               ========================================================= */}
+            {activeTab === "profile" && (
+              <section className="tab-page-section">
+                <div className="profile-hub-wrapper">
+                  {/* Top Identity Banner */}
+                  <div className="profile-top-card">
+                    <div className="profile-user-identity">
+                      <div className="profile-avatar">
+                        {(authForm.name || currentUser?.displayName || currentUser?.email || "M")
+                          .charAt(0)
+                          .toUpperCase()}
                       </div>
-                      <div>
-                        <strong>
-                          {currentUser ? "Account & Delivery Settings" : "Sign In / Sign Up"}
-                        </strong>
-                        <small>Name, mobile number &amp; default delivery address</small>
+                      <div className="profile-user-text">
+                        <h3>
+                          {currentUser
+                            ? authForm.name || currentUser.displayName || "MEGAZONE Member"
+                            : "Welcome to MEGAZONE Pakistan"}
+                        </h3>
+                        <p>
+                          {currentUser
+                            ? currentUser.email
+                            : "Sign in or create an account to manage your profile, orders & seller settings"}
+                        </p>
+                        {isSellerApproved && (
+                          <div
+                            style={{
+                              marginTop: 6,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 5,
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: "#9ef0c4",
+                            }}
+                          >
+                            <CheckCircle2 size={14} /> Approved Multi-Vendor Seller / Admin
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <ChevronRight size={16} color="#647a6d" />
-                  </button>
 
-                  <button
-                    type="button"
-                    className={`profile-menu-item ${profileSection === "wishlist" ? "active" : ""}`}
-                    onClick={() => setProfileSection("wishlist")}
-                  >
-                    <div className="profile-menu-left">
-                      <div className="profile-menu-icon">
-                        <Heart size={18} />
+                    {currentUser && (
+                      <button
+                        type="button"
+                        className="btn-white-green"
+                        style={{ height: 38, padding: "0 14px", fontSize: 12.5 }}
+                        onClick={async () => {
+                          if (auth) await signOut(auth);
+                          showToast("Signed out of MEGAZONE");
+                        }}
+                      >
+                        <LogOut size={14} /> Sign Out
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Responsive 4-Card Section Switcher */}
+                  <div className="profile-subnav-grid">
+                    <button
+                      type="button"
+                      className={`profile-subnav-btn ${profileSection === "account" ? "active" : ""}`}
+                      onClick={() => setProfileSection("account")}
+                    >
+                      <div className="profile-subnav-icon">
+                        <UserRound size={17} />
                       </div>
                       <div>
-                        <strong>Saved Wishlist ({wishlistIds.length})</strong>
-                        <small>Products you saved for quick buying</small>
+                        <strong>{currentUser ? "Account Settings" : "Login / Sign Up"}</strong>
+                        <small>Profile &amp; delivery address</small>
                       </div>
-                    </div>
-                    <ChevronRight size={16} color="#647a6d" />
-                  </button>
+                    </button>
 
-                  <button
-                    type="button"
-                    className="profile-menu-item"
-                    onClick={() => setActiveTab("orders")}
-                  >
-                    <div className="profile-menu-left">
-                      <div className="profile-menu-icon">
-                        <ClipboardList size={18} />
+                    <button
+                      type="button"
+                      className={`profile-subnav-btn ${profileSection === "wishlist" ? "active" : ""}`}
+                      onClick={() => setProfileSection("wishlist")}
+                    >
+                      <div className="profile-subnav-icon">
+                        <Heart size={17} />
                       </div>
                       <div>
-                        <strong>My Orders &amp; Live Tracking ({allMyOrders.length})</strong>
-                        <small>Track packages &amp; view order history</small>
+                        <strong>Wishlist ({wishlistIds.length})</strong>
+                        <small>Saved items</small>
                       </div>
-                    </div>
-                    <ChevronRight size={16} color="#647a6d" />
-                  </button>
+                    </button>
 
-                  <button
-                    type="button"
-                    className={`profile-menu-item ${profileSection === "seller" ? "active" : ""}`}
-                    onClick={() => setProfileSection("seller")}
-                  >
-                    <div className="profile-menu-left">
-                      <div className="profile-menu-icon">
-                        <Store size={18} />
+                    <button
+                      type="button"
+                      className="profile-subnav-btn"
+                      onClick={() => switchMainTab("orders")}
+                    >
+                      <div className="profile-subnav-icon">
+                        <ClipboardList size={17} />
+                      </div>
+                      <div>
+                        <strong>My Orders ({allMyOrders.length})</strong>
+                        <small>Live order tracker</small>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`profile-subnav-btn ${profileSection === "seller" ? "active" : ""}`}
+                      onClick={() => setProfileSection("seller")}
+                    >
+                      <div className="profile-subnav-icon">
+                        <Store size={17} />
                       </div>
                       <div>
                         <strong>
                           {isSellerApproved
-                            ? "Seller Center (Approved ✓)"
+                            ? "Seller Approved ✓"
                             : sellerApplication?.status === "pending"
-                              ? "Become a Seller (Pending Admin Review)"
-                              : "Become a Seller (Settings)"}
+                              ? "Seller (Pending)"
+                              : "Become a Seller"}
                         </strong>
-                        <small>1-Month Free Trial · Then 1-Time Lifetime Fee</small>
-                      </div>
-                    </div>
-                    <ChevronRight size={16} color="#647a6d" />
-                  </button>
-
-                  {currentUser && (
-                    <button
-                      type="button"
-                      className="profile-menu-item"
-                      onClick={async () => {
-                        if (auth) await signOut(auth);
-                        showToast("Signed out of MEGAZONE");
-                      }}
-                    >
-                      <div className="profile-menu-left">
-                        <div className="profile-menu-icon" style={{ color: "#b42318" }}>
-                          <LogOut size={18} />
-                        </div>
-                        <div>
-                          <strong style={{ color: "#b42318" }}>Sign Out</strong>
-                          <small>Log out of your account on this device</small>
-                        </div>
+                        <small>Apply for Vendor Admin</small>
                       </div>
                     </button>
-                  )}
-                </div>
-              </aside>
-
-              {/* Right Content Area */}
-              <div className="profile-content-card">
-                {/* 1. Official Seller Approval Banner inside User Profile if Admin Approved */}
-                {isSellerApproved && (
-                  <div className="seller-approved-banner">
-                    <small style={{ fontWeight: 700, color: "#9ef0c4" }}>
-                      ☪ OFFICIAL ADMIN APPROVAL NOTIFICATION
-                    </small>
-                    <h3>
-                      Congratulations! Your Seller Account Has Been Approved by MEGAZONE Admin
-                    </h3>
-                    <p>
-                      Your shop{" "}
-                      <strong>{sellerApplication?.shopName || "MEGAZONE Partner Store"}</strong> is
-                      now officially verified and your account has been granted{" "}
-                      <strong>
-                        {userRole === "super_admin" || userRole === "admin"
-                          ? "Admin & Seller"
-                          : "Seller"}
-                      </strong>{" "}
-                      permissions. You can now log in to the MEGAZONE Admin / Seller Panel using
-                      your registered email (<strong>{currentUser?.email || sellerApplication?.email}</strong>) to upload and manage your products!
-                    </p>
                   </div>
-                )}
 
-                {/* SUB-VIEW A: Account Sign In / Sign Up / Delivery Profile */}
-                {profileSection === "account" && (
-                  <>
-                    {!currentUser ? (
-                      <form onSubmit={handleAuthSubmit}>
-                        <div className="section-bar" style={{ marginBottom: 16 }}>
+                  {/* Profile Main Content Card */}
+                  <div className="profile-content-card">
+                    {/* Official Super Admin Approval Banner + Separate Admin Panel URL & Login Info */}
+                    {isSellerApproved && (
+                      <div className="seller-approved-banner">
+                        <small style={{ fontWeight: 700, color: "#9ef0c4" }}>
+                          ☪ OFFICIAL SUPER ADMIN APPROVAL NOTIFICATION
+                        </small>
+                        <h3>
+                          Congratulations! Your Multi-Vendor Seller Account Is Approved
+                        </h3>
+                        <p>
+                          Super Admin has approved your store{" "}
+                          <strong>{sellerApplication?.shopName || "MEGAZONE Partner Store"}</strong>{" "}
+                          and activated your{" "}
+                          <strong>
+                            {userRole === "super_admin" || userRole === "admin"
+                              ? "Admin & Seller"
+                              : "Vendor / Seller Admin"}
+                          </strong>{" "}
+                          account. Use the Gmail and Password you submitted in your application to log in to the separate Seller Admin Panel:
+                        </p>
+
+                        <div className="admin-access-box">
                           <div>
-                            <h2>
-                              {authMode === "login"
-                                ? "Sign In to MEGAZONE Pakistan"
-                                : authMode === "signup"
-                                  ? "Create Your MEGAZONE Account"
-                                  : "Reset Your Password"}
-                            </h2>
-                            <p>
-                              Access your saved delivery address, order tracking, and Seller Center settings.
-                            </p>
+                            <small style={{ color: "#9ef0c4", fontWeight: 700, display: "block" }}>
+                              APPROVED ADMIN LOGIN GMAIL:
+                            </small>
+                            <code>{sellerApplication?.email || currentUser?.email || "Your registered Gmail"}</code>
                           </div>
-                        </div>
 
-                        <div className="segmented-group" style={{ marginBottom: 20 }}>
-                          <button
-                            type="button"
-                            className={`segmented-btn ${authMode === "login" ? "active" : ""}`}
-                            onClick={() => {
-                              setAuthMode("login");
-                              setAuthError("");
-                              setAuthMessage("");
-                            }}
-                          >
-                            Login
-                          </button>
-                          <button
-                            type="button"
-                            className={`segmented-btn ${authMode === "signup" ? "active" : ""}`}
-                            onClick={() => {
-                              setAuthMode("signup");
-                              setAuthError("");
-                              setAuthMessage("");
-                            }}
-                          >
-                            Create Account (Sign Up)
-                          </button>
-                          <button
-                            type="button"
-                            className={`segmented-btn ${authMode === "reset" ? "active" : ""}`}
-                            onClick={() => {
-                              setAuthMode("reset");
-                              setAuthError("");
-                              setAuthMessage("");
-                            }}
-                          >
-                            Forgot Password
-                          </button>
+                          {resolvedAdminPanelUrl ? (
+                            <div>
+                              <small style={{ color: "#9ef0c4", fontWeight: 700, display: "block", marginBottom: 4 }}>
+                                SELLER ADMIN PANEL URL (PROVIDED BY SUPER ADMIN):
+                              </small>
+                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                                <code>{resolvedAdminPanelUrl}</code>
+                                <a
+                                  href={resolvedAdminPanelUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn-white-green"
+                                  style={{ height: 34, padding: "0 12px", fontSize: 12 }}
+                                >
+                                  Open Admin Panel <ExternalLink size={13} />
+                                </a>
+                                <button
+                                  type="button"
+                                  className="btn-outline-light"
+                                  style={{ height: 34, padding: "0 10px", fontSize: 12 }}
+                                  onClick={() => {
+                                    navigator.clipboard?.writeText(resolvedAdminPanelUrl);
+                                    showToast("Admin Panel URL copied!");
+                                  }}
+                                >
+                                  <Copy size={13} /> Copy URL
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <small style={{ color: "rgba(255,255,255,0.85)" }}>
+                              Your Seller Admin Panel URL will appear here automatically as soon as Super Admin attaches the panel link in your approval record.
+                            </small>
+                          )}
                         </div>
+                      </div>
+                    )}
 
-                        <div className="checkout-field-grid">
-                          {authMode === "signup" && (
-                            <>
-                              <label>
-                                Full Name *
+                    {/* SUB-VIEW A: Account Sign In / Sign Up / Delivery Profile */}
+                    {profileSection === "account" && (
+                      <>
+                        {!currentUser ? (
+                          <form onSubmit={handleAuthSubmit}>
+                            <div className="section-bar" style={{ marginBottom: 14 }}>
+                              <div>
+                                <h2>
+                                  {authMode === "login"
+                                    ? "Sign In to MEGAZONE Pakistan"
+                                    : authMode === "signup"
+                                      ? "Create Your MEGAZONE Account"
+                                      : "Reset Your Password"}
+                                </h2>
+                                <p>
+                                  Access your saved delivery address, order tracking, and Seller application settings.
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="segmented-group" style={{ marginBottom: 18 }}>
+                              <button
+                                type="button"
+                                className={`segmented-btn ${authMode === "login" ? "active" : ""}`}
+                                onClick={() => {
+                                  setAuthMode("login");
+                                  setAuthError("");
+                                  setAuthMessage("");
+                                }}
+                              >
+                                Login
+                              </button>
+                              <button
+                                type="button"
+                                className={`segmented-btn ${authMode === "signup" ? "active" : ""}`}
+                                onClick={() => {
+                                  setAuthMode("signup");
+                                  setAuthError("");
+                                  setAuthMessage("");
+                                }}
+                              >
+                                Create Account (Sign Up)
+                              </button>
+                              <button
+                                type="button"
+                                className={`segmented-btn ${authMode === "reset" ? "active" : ""}`}
+                                onClick={() => {
+                                  setAuthMode("reset");
+                                  setAuthError("");
+                                  setAuthMessage("");
+                                }}
+                              >
+                                Forgot Password
+                              </button>
+                            </div>
+
+                            <div className="checkout-field-grid">
+                              {authMode === "signup" && (
+                                <>
+                                  <label>
+                                    Full Name *
+                                    <input
+                                      required
+                                      value={authForm.name}
+                                      onChange={(e) =>
+                                        setAuthForm({ ...authForm, name: e.target.value })
+                                      }
+                                      placeholder="Enter your full name"
+                                    />
+                                  </label>
+                                  <label>
+                                    Mobile Number *
+                                    <input
+                                      required
+                                      type="tel"
+                                      value={authForm.phone}
+                                      onChange={(e) =>
+                                        setAuthForm({ ...authForm, phone: e.target.value })
+                                      }
+                                      placeholder="03XX XXXXXXX"
+                                    />
+                                  </label>
+                                </>
+                              )}
+                              <label className={authMode === "reset" ? "field-full" : ""}>
+                                Email Address *
                                 <input
                                   required
+                                  type="email"
+                                  value={authForm.email}
+                                  onChange={(e) =>
+                                    setAuthForm({ ...authForm, email: e.target.value })
+                                  }
+                                  placeholder="you@gmail.com"
+                                />
+                              </label>
+                              {authMode !== "reset" && (
+                                <label>
+                                  Password *
+                                  <input
+                                    required
+                                    type="password"
+                                    minLength={6}
+                                    value={authForm.password}
+                                    onChange={(e) =>
+                                      setAuthForm({ ...authForm, password: e.target.value })
+                                    }
+                                    placeholder="Minimum 6 characters"
+                                  />
+                                </label>
+                              )}
+                              {authMode === "signup" && (
+                                <>
+                                  <label>
+                                    City
+                                    <input
+                                      value={authForm.city}
+                                      onChange={(e) =>
+                                        setAuthForm({ ...authForm, city: e.target.value })
+                                      }
+                                      placeholder="Karachi, Lahore, Islamabad..."
+                                    />
+                                  </label>
+                                  <label>
+                                    Default Delivery Address
+                                    <input
+                                      value={authForm.address}
+                                      onChange={(e) =>
+                                        setAuthForm({ ...authForm, address: e.target.value })
+                                      }
+                                      placeholder="House #, Street, Area"
+                                    />
+                                  </label>
+                                </>
+                              )}
+                            </div>
+
+                            {authError && <div className="checkout-error">{authError}</div>}
+                            {authMessage && (
+                              <div className="summary-safe" style={{ marginTop: 12 }}>
+                                {authMessage}
+                              </div>
+                            )}
+
+                            <button type="submit" className="checkout-submit" disabled={authBusy}>
+                              {authBusy
+                                ? "Please wait…"
+                                : authMode === "login"
+                                  ? "Sign In to My Account"
+                                  : authMode === "signup"
+                                    ? "Create My MEGAZONE Account"
+                                    : "Send Password Reset Link"}
+                              <ArrowRight size={16} />
+                            </button>
+                          </form>
+                        ) : (
+                          <form onSubmit={handleProfileSave}>
+                            <div className="section-bar" style={{ marginBottom: 16 }}>
+                              <div>
+                                <h2>My Account &amp; Delivery Settings</h2>
+                                <p>
+                                  Keep your mobile number and delivery address updated for 1-click checkout.
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="checkout-field-grid">
+                              <label>
+                                Full Name
+                                <input
                                   value={authForm.name}
                                   onChange={(e) =>
                                     setAuthForm({ ...authForm, name: e.target.value })
                                   }
-                                  placeholder="Enter your full name"
+                                  placeholder="Your full name"
                                 />
                               </label>
                               <label>
-                                Mobile Number *
+                                Mobile / WhatsApp Number
                                 <input
-                                  required
                                   type="tel"
                                   value={authForm.phone}
                                   onChange={(e) =>
@@ -2483,37 +2972,6 @@ export default function App() {
                                   placeholder="03XX XXXXXXX"
                                 />
                               </label>
-                            </>
-                          )}
-                          <label className={authMode === "reset" ? "field-full" : ""}>
-                            Email Address *
-                            <input
-                              required
-                              type="email"
-                              value={authForm.email}
-                              onChange={(e) =>
-                                setAuthForm({ ...authForm, email: e.target.value })
-                              }
-                              placeholder="you@example.com"
-                            />
-                          </label>
-                          {authMode !== "reset" && (
-                            <label>
-                              Password *
-                              <input
-                                required
-                                type="password"
-                                minLength={6}
-                                value={authForm.password}
-                                onChange={(e) =>
-                                  setAuthForm({ ...authForm, password: e.target.value })
-                                }
-                                placeholder="Minimum 6 characters"
-                              />
-                            </label>
-                          )}
-                          {authMode === "signup" && (
-                            <>
                               <label>
                                 City
                                 <input
@@ -2525,280 +2983,208 @@ export default function App() {
                                 />
                               </label>
                               <label>
-                                Default Delivery Address
-                                <input
+                                Registered Email
+                                <input value={currentUser.email || ""} disabled />
+                              </label>
+                              <label className="field-full">
+                                Complete Delivery Address (Auto-fills at Checkout)
+                                <textarea
+                                  rows={3}
                                   value={authForm.address}
                                   onChange={(e) =>
                                     setAuthForm({ ...authForm, address: e.target.value })
                                   }
-                                  placeholder="House #, Street, Area"
+                                  placeholder="House #, Street, Sector / Area, Nearest Landmark"
                                 />
                               </label>
-                            </>
-                          )}
-                        </div>
+                            </div>
 
-                        {authError && <div className="checkout-error">{authError}</div>}
-                        {authMessage && (
-                          <div className="summary-safe" style={{ marginTop: 12 }}>
-                            {authMessage}
-                          </div>
+                            {authError && <div className="checkout-error">{authError}</div>}
+                            {authMessage && (
+                              <div className="summary-safe" style={{ marginTop: 12 }}>
+                                {authMessage}
+                              </div>
+                            )}
+
+                            <button type="submit" className="checkout-submit" disabled={authBusy}>
+                              {authBusy ? "Saving Settings…" : "Save Profile & Delivery Settings"}
+                            </button>
+                          </form>
                         )}
+                      </>
+                    )}
 
-                        <button type="submit" className="checkout-submit" disabled={authBusy}>
-                          {authBusy
-                            ? "Please wait…"
-                            : authMode === "login"
-                              ? "Sign In to My Account"
-                              : authMode === "signup"
-                                ? "Create My MEGAZONE Account"
-                                : "Send Password Reset Link"}
-                          <ArrowRight size={16} />
-                        </button>
-                      </form>
-                    ) : (
-                      <form onSubmit={handleProfileSave}>
+                    {/* SUB-VIEW B: Saved Wishlist inside User Profile */}
+                    {profileSection === "wishlist" && (
+                      <div>
                         <div className="section-bar" style={{ marginBottom: 18 }}>
                           <div>
-                            <h2>My Account &amp; Delivery Settings</h2>
+                            <h2>My Saved Wishlist ({wishlistedProducts.length})</h2>
+                            <p>Products you bookmarked while browsing MEGAZONE</p>
+                          </div>
+                        </div>
+
+                        {wishlistedProducts.length === 0 ? (
+                          <div className="empty-catalog" style={{ marginTop: 0 }}>
+                            <Heart size={30} color="#01411c" />
+                            <h3>Your wishlist is empty</h3>
                             <p>
-                              Keep your mobile number and delivery address updated for 1-click checkout.
+                              Tap the heart icon on any product card to save it here for later.
+                            </p>
+                            <button
+                              type="button"
+                              className="btn-green-solid"
+                              onClick={() => switchMainTab("home")}
+                            >
+                              Explore Products
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="product-grid">
+                            {wishlistedProducts.map((p) => (
+                              <ProductCard
+                                key={p.id}
+                                product={p}
+                                onAdd={(item) => add(item, 1)}
+                                onBuy={(item) => buyNow(item, 1)}
+                                onWishlist={toggleWishlist}
+                                onOpenProduct={openProductDetail}
+                                isWishlisted={true}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* SUB-VIEW C: Multi-Vendor Become a Seller Application (With Terms, Gmail & Password for Super Admin) */}
+                    {profileSection === "seller" && (
+                      <div>
+                        <div className="section-bar" style={{ marginBottom: 16 }}>
+                          <div>
+                            <h2>Become a Seller — Multi-Vendor Application</h2>
+                            <p>
+                              Interested in selling your products on MEGAZONE? Read our seller terms, fill out the form below with your desired Admin Gmail &amp; Password, and submit for Super Admin approval.
                             </p>
                           </div>
                         </div>
 
-                        <div className="checkout-field-grid">
-                          <label>
-                            Full Name
-                            <input
-                              value={authForm.name}
-                              onChange={(e) =>
-                                setAuthForm({ ...authForm, name: e.target.value })
-                              }
-                              placeholder="Your full name"
-                            />
-                          </label>
-                          <label>
-                            Mobile / WhatsApp Number
-                            <input
-                              type="tel"
-                              value={authForm.phone}
-                              onChange={(e) =>
-                                setAuthForm({ ...authForm, phone: e.target.value })
-                              }
-                              placeholder="03XX XXXXXXX"
-                            />
-                          </label>
-                          <label>
-                            City
-                            <input
-                              value={authForm.city}
-                              onChange={(e) =>
-                                setAuthForm({ ...authForm, city: e.target.value })
-                              }
-                              placeholder="Karachi, Lahore, Islamabad..."
-                            />
-                          </label>
-                          <label>
-                            Registered Email
-                            <input value={currentUser.email || ""} disabled />
-                          </label>
-                          <label className="field-full">
-                            Complete Delivery Address (Auto-fills at Checkout)
-                            <textarea
-                              rows={3}
-                              value={authForm.address}
-                              onChange={(e) =>
-                                setAuthForm({ ...authForm, address: e.target.value })
-                              }
-                              placeholder="House #, Street, Sector / Area, Nearest Landmark"
-                            />
-                          </label>
-                        </div>
-
-                        {authError && <div className="checkout-error">{authError}</div>}
-                        {authMessage && (
-                          <div className="summary-safe" style={{ marginTop: 12 }}>
-                            {authMessage}
+                        {sellerApplication && !isSellerApproved && (
+                          <div className="seller-pending-banner">
+                            <h4>
+                              ⏳ Application Sent to Super Admin ({sellerApplication.shopName})
+                            </h4>
+                            <p>
+                              Your multi-vendor application for{" "}
+                              <strong>{sellerApplication.shopName}</strong> (Admin Login Gmail:{" "}
+                              <strong>{sellerApplication.email}</strong> · Phone:{" "}
+                              {sellerApplication.phone}) is currently pending review in the{" "}
+                              <strong>Super Admin Panel</strong>. Once Super Admin registers your Gmail &amp; Password as an Admin/Seller and approves your status, your{" "}
+                              <strong>Approval Message and Admin Panel Link (URL)</strong> will appear right here in your Profile!
+                            </p>
                           </div>
                         )}
 
-                        <button type="submit" className="checkout-submit" disabled={authBusy}>
-                          {authBusy ? "Saving Settings…" : "Save Profile & Delivery Settings"}
-                        </button>
-                      </form>
-                    )}
-                  </>
-                )}
-
-                {/* SUB-VIEW B: Saved Wishlist inside User Profile */}
-                {profileSection === "wishlist" && (
-                  <div>
-                    <div className="section-bar" style={{ marginBottom: 18 }}>
-                      <div>
-                        <h2>My Saved Wishlist ({wishlistedProducts.length})</h2>
-                        <p>Products you bookmarked while browsing MEGAZONE</p>
-                      </div>
-                    </div>
-
-                    {wishlistedProducts.length === 0 ? (
-                      <div className="empty-catalog" style={{ marginTop: 0 }}>
-                        <Heart size={30} color="#01411c" />
-                        <h3>Your wishlist is empty</h3>
-                        <p>
-                          Tap the heart icon on any product card to save it here for later.
-                        </p>
-                        <button
-                          type="button"
-                          className="btn-green-solid"
-                          onClick={() => setActiveTab("home")}
-                        >
-                          Explore Products
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="product-grid">
-                        {wishlistedProducts.map((p) => (
-                          <ProductCard
-                            key={p.id}
-                            product={p}
-                            onAdd={add}
-                            onBuy={buyNow}
-                            onWishlist={toggleWishlist}
-                            onQuickView={(item) => setQuickViewProduct(item)}
-                            isWishlisted={true}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* SUB-VIEW C: Daraz-Style Become a Seller Settings & Admin Approval Status */}
-                {profileSection === "seller" && (
-                  <div>
-                    <div className="section-bar" style={{ marginBottom: 16 }}>
-                      <div>
-                        <h2>MEGAZONE Seller Center &amp; Registration</h2>
-                        <p>
-                          Start with a 1-Month Free Seller Trial. Satisfied after 30 days? Pay a one-time fee ({money(lifetimeFeeSetting)}) for lifetime product listings!
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Show Pending Review Banner if user already applied and is waiting for Admin Panel approval */}
-                    {sellerApplication && !isSellerApproved && (
-                      <div className="seller-pending-banner">
-                        <h4>
-                          ⏳ Application Status: Under Admin Review ({sellerApplication.shopName})
-                        </h4>
-                        <p>
-                          Your seller application for <strong>{sellerApplication.shopName}</strong>{" "}
-                          (Owner: {sellerApplication.ownerName} · Phone: {sellerApplication.phone}) has been sent to the{" "}
-                          <strong>MEGAZONE Admin Panel</strong>. As soon as the Admin approves your request and upgrades your account, your official{" "}
-                          <strong>Seller Approval Message</strong> will appear right here!
-                        </p>
-                      </div>
-                    )}
-
-                    {sellerSuccess ? (
-                      <div className="order-success">
-                        <div className="success-check">✓</div>
-                        <h3>Sent to MEGAZONE Admin Panel!</h3>
-                        <p>{sellerSuccess}</p>
-                        <button
-                          type="button"
-                          className="checkout-submit"
-                          onClick={() => setSellerSuccess("")}
-                        >
-                          View My Seller Settings
-                        </button>
-                      </div>
-                    ) : (
-                      <form onSubmit={handleSellerSubmit}>
-                        <h3 style={{ fontSize: 16, marginBottom: 12 }}>
-                          1. Select Your Seller Package
-                        </h3>
-                        <div className="seller-plan-grid">
-                          <div
-                            className={`seller-plan-card ${sellerForm.plan === "trial_30_days" ? "selected" : ""}`}
-                            onClick={() => setSellerForm({ ...sellerForm, plan: "trial_30_days" })}
-                          >
-                            <small>MOST POPULAR · DARAZ-STYLE ONBOARDING</small>
-                            <h4>1-Month Free Trial (Rs. 0 Today)</h4>
-                            <p>
-                              Run your shop free for 30 days. After 1 month, pay the one-time{" "}
-                              <strong>{money(lifetimeFeeSetting)}</strong> fee to keep listing products for life!
-                            </p>
+                        {sellerSuccess ? (
+                          <div className="order-success">
+                            <div className="success-check">✓</div>
+                            <h3>Application Received by Super Admin Panel!</h3>
+                            <p>{sellerSuccess}</p>
+                            <button
+                              type="button"
+                              className="checkout-submit"
+                              onClick={() => setSellerSuccess("")}
+                            >
+                              Back to Seller Status
+                            </button>
                           </div>
+                        ) : (
+                          <form onSubmit={handleSellerSubmit}>
+                            <h3 style={{ fontSize: 16, marginBottom: 12 }}>
+                              1. Choose Your Multi-Vendor Membership Plan
+                            </h3>
+                            <div className="seller-plan-grid">
+                              <div
+                                className={`seller-plan-card ${sellerForm.plan === "trial_30_days" ? "selected" : ""}`}
+                                onClick={() =>
+                                  setSellerForm({ ...sellerForm, plan: "trial_30_days" })
+                                }
+                              >
+                                <small>NEW VENDOR ONBOARDING</small>
+                                <h4>1-Month Free Trial (Rs. 0 Today)</h4>
+                                <p>
+                                  Test your shop free for 30 days. Satisfied after 1 month? Pay the one-time{" "}
+                                  <strong>{money(lifetimeFeeSetting)}</strong> fee to keep listing your products for life!
+                                </p>
+                              </div>
 
-                          <div
-                            className={`seller-plan-card ${sellerForm.plan === "lifetime_direct" ? "selected" : ""}`}
-                            onClick={() =>
-                              setSellerForm({ ...sellerForm, plan: "lifetime_direct" })
-                            }
-                          >
-                            <small>ONE-TIME FEE · LIFETIME ACCESS</small>
-                            <h4>Direct Lifetime Seller ({money(lifetimeFeeSetting)})</h4>
-                            <p>
-                              Pay once and list unlimited physical products, game top-ups, or digital items forever with zero monthly rent.
-                            </p>
-                          </div>
-                        </div>
+                              <div
+                                className={`seller-plan-card ${sellerForm.plan === "lifetime_direct" ? "selected" : ""}`}
+                                onClick={() =>
+                                  setSellerForm({ ...sellerForm, plan: "lifetime_direct" })
+                                }
+                              >
+                                <small>ONE-TIME FEE · LIFETIME ACCESS</small>
+                                <h4>Direct Lifetime Seller ({money(lifetimeFeeSetting)})</h4>
+                                <p>
+                                  Pay once and list unlimited products forever on MEGAZONE with zero monthly subscription.
+                                </p>
+                              </div>
+                            </div>
 
-                        <h3 style={{ fontSize: 16, marginBottom: 12 }}>
-                          2. Shop &amp; Owner Information (Sent to Admin Panel)
-                        </h3>
-                        <div className="checkout-field-grid">
-                          <label>
-                            Shop / Store Name *
-                            <input
-                              required
-                              value={sellerForm.shopName}
-                              onChange={(e) =>
-                                setSellerForm({ ...sellerForm, shopName: e.target.value })
-                              }
-                              placeholder="e.g. Pak Tech Store / Lahore Fashion"
-                            />
-                          </label>
-                          <label>
-                            Owner Full Name *
-                            <input
-                              required
-                              value={sellerForm.ownerName}
-                              onChange={(e) =>
-                                setSellerForm({ ...sellerForm, ownerName: e.target.value })
-                              }
-                              placeholder="Your full name"
-                            />
-                          </label>
-                          <label>
-                            Mobile / WhatsApp Number *
-                            <input
-                              required
-                              type="tel"
-                              value={sellerForm.phone}
-                              onChange={(e) =>
-                                setSellerForm({ ...sellerForm, phone: e.target.value })
-                              }
-                              placeholder="03XX XXXXXXX"
-                            />
-                          </label>
-                          <label>
-                            City *
-                            <input
-                              required
-                              value={sellerForm.city}
-                              onChange={(e) =>
-                                setSellerForm({ ...sellerForm, city: e.target.value })
-                              }
-                              placeholder="Karachi, Lahore, Islamabad..."
-                            />
-                          </label>
-                          {!currentUser && (
-                            <>
+                            <h3 style={{ fontSize: 16, marginBottom: 12 }}>
+                              2. Store Details &amp; Admin Panel Login Credentials (Sent to Super Admin)
+                            </h3>
+                            <div className="checkout-field-grid">
                               <label>
-                                Seller Login Email *
+                                Shop / Vendor Store Name *
+                                <input
+                                  required
+                                  value={sellerForm.shopName}
+                                  onChange={(e) =>
+                                    setSellerForm({ ...sellerForm, shopName: e.target.value })
+                                  }
+                                  placeholder="e.g. Pak Tech Store / Lahore Fashion"
+                                />
+                              </label>
+                              <label>
+                                Owner Full Name *
+                                <input
+                                  required
+                                  value={sellerForm.ownerName}
+                                  onChange={(e) =>
+                                    setSellerForm({ ...sellerForm, ownerName: e.target.value })
+                                  }
+                                  placeholder="Your full name"
+                                />
+                              </label>
+                              <label>
+                                Mobile / WhatsApp Number *
+                                <input
+                                  required
+                                  type="tel"
+                                  value={sellerForm.phone}
+                                  onChange={(e) =>
+                                    setSellerForm({ ...sellerForm, phone: e.target.value })
+                                  }
+                                  placeholder="03XX XXXXXXX"
+                                />
+                              </label>
+                              <label>
+                                City *
+                                <input
+                                  required
+                                  value={sellerForm.city}
+                                  onChange={(e) =>
+                                    setSellerForm({ ...sellerForm, city: e.target.value })
+                                  }
+                                  placeholder="Karachi, Lahore, Islamabad..."
+                                />
+                              </label>
+
+                              {/* Always collect Gmail & Password so Super Admin can add them in New Admin */}
+                              <label>
+                                Seller Admin Login Gmail *
                                 <input
                                   required
                                   type="email"
@@ -2806,439 +3192,559 @@ export default function App() {
                                   onChange={(e) =>
                                     setSellerForm({ ...sellerForm, email: e.target.value })
                                   }
-                                  placeholder="shop@example.com"
+                                  placeholder="yourstore@gmail.com"
                                 />
                               </label>
                               <label>
-                                Seller Account Password *
+                                Seller Admin Login Password *
                                 <input
                                   required
                                   type="password"
                                   minLength={6}
                                   value={sellerForm.password}
                                   onChange={(e) =>
-                                    setSellerForm({ ...sellerForm, password: e.target.value })
+                                    setSellerForm({
+                                      ...sellerForm,
+                                      password: e.target.value,
+                                    })
                                   }
-                                  placeholder="Minimum 6 characters"
+                                  placeholder="Password for Admin Panel access (min 6 chars)"
                                 />
                               </label>
-                            </>
-                          )}
-                          <label className="field-full">
-                            Primary Product Category
-                            <select
-                              value={sellerForm.categoryFocus}
-                              onChange={(e) =>
-                                setSellerForm({ ...sellerForm, categoryFocus: e.target.value })
-                              }
+
+                              <label className="field-full">
+                                Primary Product Category
+                                <select
+                                  value={sellerForm.categoryFocus}
+                                  onChange={(e) =>
+                                    setSellerForm({
+                                      ...sellerForm,
+                                      categoryFocus: e.target.value,
+                                    })
+                                  }
+                                >
+                                  <option value="Electronics, Fashion & General Merchandise">
+                                    Electronics, Fashion &amp; General Merchandise
+                                  </option>
+                                  <option value="Electronics & Phones Accessories">
+                                    Electronics &amp; Phones Accessories
+                                  </option>
+                                  <option value="Fashion, Shoes & Watches">
+                                    Fashion, Shoes &amp; Watches
+                                  </option>
+                                  <option value="Home, Kitchen & Beauty">
+                                    Home, Kitchen &amp; Beauty
+                                  </option>
+                                </select>
+                              </label>
+                            </div>
+
+                            <h3 className="payment-heading">
+                              3. Your Payout Account (Where Customers Pay You)
+                            </h3>
+                            <div className="checkout-field-grid">
+                              <label>
+                                Account Holder Title *
+                                <input
+                                  required
+                                  value={sellerForm.accountTitle}
+                                  onChange={(e) =>
+                                    setSellerForm({
+                                      ...sellerForm,
+                                      accountTitle: e.target.value,
+                                    })
+                                  }
+                                  placeholder="Account title on Easypaisa / JazzCash / Bank"
+                                />
+                              </label>
+                              <label>
+                                Easypaisa Number (optional)
+                                <input
+                                  value={sellerForm.easypaisa}
+                                  onChange={(e) =>
+                                    setSellerForm({ ...sellerForm, easypaisa: e.target.value })
+                                  }
+                                  placeholder="03XX XXXXXXX"
+                                />
+                              </label>
+                              <label>
+                                JazzCash Number (optional)
+                                <input
+                                  value={sellerForm.jazzcash}
+                                  onChange={(e) =>
+                                    setSellerForm({ ...sellerForm, jazzcash: e.target.value })
+                                  }
+                                  placeholder="03XX XXXXXXX"
+                                />
+                              </label>
+                              <label>
+                                Bank Name &amp; IBAN / Account # (optional)
+                                <input
+                                  value={sellerForm.bankAccount}
+                                  onChange={(e) =>
+                                    setSellerForm({
+                                      ...sellerForm,
+                                      bankAccount: e.target.value,
+                                    })
+                                  }
+                                  placeholder="e.g. Meezan Bank - PK00MEZN..."
+                                />
+                              </label>
+                            </div>
+
+                            {sellerForm.plan === "lifetime_direct" && (
+                              <div className="online-payment-box" style={{ marginTop: 16 }}>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    gap: 10,
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  <b>
+                                    Pay One-Time Lifetime Seller Fee:{" "}
+                                    <span style={{ color: "#01411c", fontSize: 16 }}>
+                                      {money(lifetimeFeeSetting)}
+                                    </span>
+                                  </b>
+                                  <span
+                                    style={{
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      background: "#e6f4ec",
+                                      color: "#01411c",
+                                      padding: "3px 8px",
+                                      borderRadius: 6,
+                                    }}
+                                  >
+                                    Verified by Super Admin via TRX ID
+                                  </span>
+                                </div>
+
+                                <p style={{ margin: "4px 0 8px", fontSize: 13 }}>
+                                  Send the one-time Lifetime Seller Access fee of{" "}
+                                  <strong>{money(lifetimeFeeSetting)}</strong> (set by Super Admin) to the official Super Admin account below, then enter your{" "}
+                                  <strong>TRX / Transaction ID</strong> so Super Admin can verify it in the Super Dashboard and approve your seller account:
+                                </p>
+
+                                <div className="payment-account-card">
+                                  <b>
+                                    Super Admin Account Title:{" "}
+                                    {superAdminPaymentAccount.accountTitle || "MEGAZONE Super Admin"}
+                                  </b>
+
+                                  {superAdminPaymentAccount.accountNumber && (
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        gap: 8,
+                                        flexWrap: "wrap",
+                                      }}
+                                    >
+                                      <span>
+                                        Account Number:{" "}
+                                        <strong className="tabular-nums">
+                                          {superAdminPaymentAccount.accountNumber}
+                                        </strong>
+                                      </span>
+                                      <button
+                                        type="button"
+                                        className="btn-cart"
+                                        style={{ minHeight: 28, padding: "2px 10px", fontSize: 11.5 }}
+                                        onClick={() => {
+                                          navigator.clipboard?.writeText(
+                                            superAdminPaymentAccount.accountNumber,
+                                          );
+                                          showToast("Super Admin Account Number copied!");
+                                        }}
+                                      >
+                                        Copy Account #
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {superAdminPaymentAccount.easypaisa && (
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        gap: 8,
+                                        flexWrap: "wrap",
+                                      }}
+                                    >
+                                      <span>
+                                        Easypaisa Account:{" "}
+                                        <strong className="tabular-nums">
+                                          {superAdminPaymentAccount.easypaisa}
+                                        </strong>
+                                      </span>
+                                      <button
+                                        type="button"
+                                        className="btn-cart"
+                                        style={{ minHeight: 28, padding: "2px 10px", fontSize: 11.5 }}
+                                        onClick={() => {
+                                          navigator.clipboard?.writeText(
+                                            superAdminPaymentAccount.easypaisa,
+                                          );
+                                          showToast("Super Admin Easypaisa number copied!");
+                                        }}
+                                      >
+                                        Copy Easypaisa
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {superAdminPaymentAccount.jazzcash && (
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        gap: 8,
+                                        flexWrap: "wrap",
+                                      }}
+                                    >
+                                      <span>
+                                        JazzCash Account:{" "}
+                                        <strong className="tabular-nums">
+                                          {superAdminPaymentAccount.jazzcash}
+                                        </strong>
+                                      </span>
+                                      <button
+                                        type="button"
+                                        className="btn-cart"
+                                        style={{ minHeight: 28, padding: "2px 10px", fontSize: 11.5 }}
+                                        onClick={() => {
+                                          navigator.clipboard?.writeText(
+                                            superAdminPaymentAccount.jazzcash,
+                                          );
+                                          showToast("Super Admin JazzCash number copied!");
+                                        }}
+                                      >
+                                        Copy JazzCash
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {superAdminPaymentAccount.bankAccount && (
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        gap: 8,
+                                        flexWrap: "wrap",
+                                      }}
+                                    >
+                                      <span>
+                                        {superAdminPaymentAccount.bankName
+                                          ? `${superAdminPaymentAccount.bankName}: `
+                                          : "Bank / IBAN: "}
+                                        <strong className="tabular-nums">
+                                          {superAdminPaymentAccount.bankAccount}
+                                        </strong>
+                                      </span>
+                                      <button
+                                        type="button"
+                                        className="btn-cart"
+                                        style={{ minHeight: 28, padding: "2px 10px", fontSize: 11.5 }}
+                                        onClick={() => {
+                                          navigator.clipboard?.writeText(
+                                            superAdminPaymentAccount.bankAccount,
+                                          );
+                                          showToast("Super Admin Bank Account copied!");
+                                        }}
+                                      >
+                                        Copy Bank #
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {!superAdminPaymentAccount.accountNumber &&
+                                    !superAdminPaymentAccount.easypaisa &&
+                                    !superAdminPaymentAccount.jazzcash &&
+                                    !superAdminPaymentAccount.bankAccount && (
+                                      <span style={{ fontSize: 12.5, color: "#01411c" }}>
+                                        Official Super Admin Account Number will automatically display here as soon as Super Admin sets it in the Super Admin Panel (Settings → Marketplace Payment).
+                                      </span>
+                                    )}
+
+                                  {superAdminPaymentAccount.instructions && (
+                                    <small style={{ display: "block", marginTop: 4, color: "#3b5244" }}>
+                                      {superAdminPaymentAccount.instructions}
+                                    </small>
+                                  )}
+                                </div>
+
+                                <label style={{ marginTop: 6 }}>
+                                  Enter Your Payment TRX ID / Reference Number (Sent to Super Admin) *
+                                  <input
+                                    required
+                                    value={sellerForm.paymentReference}
+                                    onChange={(e) =>
+                                      setSellerForm({
+                                        ...sellerForm,
+                                        paymentReference: e.target.value,
+                                      })
+                                    }
+                                    placeholder="e.g. TRX ID 84920193842 (Easypaisa / JazzCash / Bank)"
+                                  />
+                                </label>
+                              </div>
+                            )}
+
+                            {/* Seller Terms & Conditions Box */}
+                            <div className="policy-terms-box">
+                              <h4>4. MEGAZONE Multi-Vendor Seller Terms &amp; Conditions</h4>
+                              <ul>
+                                <li>
+                                  <strong>Admin Panel Verification:</strong> Your submitted Gmail and Password will be reviewed by the Super Admin. Once approved, Super Admin will activate your Vendor Admin account and share the Admin Panel URL in your Profile.
+                                </li>
+                                <li>
+                                  <strong>1-Month Free Trial &amp; Lifetime Plan:</strong> New sellers receive 30 days of free selling. After 1 month, a one-time lifetime fee ({money(lifetimeFeeSetting)}) applies to continue listing products forever.
+                                </li>
+                                <li>
+                                  <strong>Product Quality &amp; Dispatch:</strong> Sellers must upload accurate photos and descriptions and dispatch confirmed orders promptly across Pakistan.
+                                </li>
+                              </ul>
+                              <label className="terms-checkbox-row">
+                                <input
+                                  type="checkbox"
+                                  required
+                                  checked={sellerForm.acceptedTerms}
+                                  onChange={(e) =>
+                                    setSellerForm({
+                                      ...sellerForm,
+                                      acceptedTerms: e.target.checked,
+                                    })
+                                  }
+                                />
+                                <span>
+                                  I have read and agree to the MEGAZONE Multi-Vendor Seller Terms &amp; Conditions, and authorize Super Admin to create my Seller Admin access using the Gmail and Password above.
+                                </span>
+                              </label>
+                            </div>
+
+                            {sellerError && <div className="checkout-error">{sellerError}</div>}
+
+                            <button
+                              type="submit"
+                              className="checkout-submit"
+                              disabled={sellerSubmitting}
                             >
-                              <option value="Physical & Digital Products">
-                                Both Physical (COD) &amp; Digital Products
-                              </option>
-                              <option value="Physical Products (COD)">
-                                Physical Products Only (Cash on Delivery)
-                              </option>
-                              <option value="Game Top-Ups (PUBG / Free Fire / Ludo)">
-                                Game Top-Ups (PUBG UC, Free Fire Diamonds, Ludo Star)
-                              </option>
-                              <option value="Digital Downloads & Templates">
-                                Digital Downloads, Software &amp; Templates
-                              </option>
-                            </select>
-                          </label>
-                        </div>
-
-                        <h3 className="payment-heading">
-                          3. Your Payout Account (Where Customers Pay You)
-                        </h3>
-                        <div className="checkout-field-grid">
-                          <label>
-                            Account Holder Title *
-                            <input
-                              required
-                              value={sellerForm.accountTitle}
-                              onChange={(e) =>
-                                setSellerForm({ ...sellerForm, accountTitle: e.target.value })
-                              }
-                              placeholder="Account title on Easypaisa / JazzCash / Bank"
-                            />
-                          </label>
-                          <label>
-                            Easypaisa Number (optional)
-                            <input
-                              value={sellerForm.easypaisa}
-                              onChange={(e) =>
-                                setSellerForm({ ...sellerForm, easypaisa: e.target.value })
-                              }
-                              placeholder="03XX XXXXXXX"
-                            />
-                          </label>
-                          <label>
-                            JazzCash Number (optional)
-                            <input
-                              value={sellerForm.jazzcash}
-                              onChange={(e) =>
-                                setSellerForm({ ...sellerForm, jazzcash: e.target.value })
-                              }
-                              placeholder="03XX XXXXXXX"
-                            />
-                          </label>
-                          <label>
-                            Bank Name &amp; IBAN / Account # (optional)
-                            <input
-                              value={sellerForm.bankAccount}
-                              onChange={(e) =>
-                                setSellerForm({ ...sellerForm, bankAccount: e.target.value })
-                              }
-                              placeholder="e.g. Meezan Bank - PK00MEZN..."
-                            />
-                          </label>
-                        </div>
-
-                        {sellerForm.plan === "lifetime_direct" && (
-                          <div className="online-payment-box" style={{ marginTop: 16 }}>
-                            <b>One-Time Lifetime Fee Payment ({money(lifetimeFeeSetting)})</b>
-                            <p>
-                              Transfer the one-time lifetime membership fee of{" "}
-                              <strong>{money(lifetimeFeeSetting)}</strong> to the marketplace owner account and enter your transaction reference below.
-                            </p>
-                            <label>
-                              Fee Transaction / Reference ID (TID) *
-                              <input
-                                required
-                                value={sellerForm.paymentReference}
-                                onChange={(e) =>
-                                  setSellerForm({
-                                    ...sellerForm,
-                                    paymentReference: e.target.value,
-                                  })
-                                }
-                                placeholder="Enter Easypaisa / JazzCash / Bank TID"
-                              />
-                            </label>
-                          </div>
+                              {sellerSubmitting
+                                ? "Sending Application to Super Admin…"
+                                : sellerApplication
+                                  ? "Update My Seller Application"
+                                  : "Submit Seller Application for Approval"}
+                              <ArrowRight size={16} />
+                            </button>
+                          </form>
                         )}
-
-                        {sellerError && <div className="checkout-error">{sellerError}</div>}
-
-                        <button
-                          type="submit"
-                          className="checkout-submit"
-                          disabled={sellerSubmitting}
-                        >
-                          {sellerSubmitting
-                            ? "Sending to Admin Panel…"
-                            : sellerApplication
-                              ? "Update My Seller Application"
-                              : sellerForm.plan === "trial_30_days"
-                                ? "Submit for 1-Month Free Seller Trial"
-                                : `Submit Lifetime Seller Application (${money(lifetimeFeeSetting)})`}
-                          <ArrowRight size={16} />
-                        </button>
-                      </form>
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
-            </div>
-          </section>
+                </div>
+              </section>
+            )}
+          </>
         )}
       </main>
 
-      {/* Rich Customer & Seller Footer */}
-      <footer className="footer">
-        <div className="footer-grid">
-          <div>
-            <a
-              href="#top"
-              className="footer-brand-white"
-              onClick={(e) => {
-                e.preventDefault();
-                setActiveTab("home");
-              }}
-            >
-              <span className="brand-flag-mark" aria-hidden="true">
-                ☪
-              </span>
-              MEGAZONE
-            </a>
-            <p className="footer-meta">
-              Pakistan’s white-and-green marketplace connecting shoppers with verified local sellers across electronics, fashion, gaming top-ups, and digital assets.
-            </p>
+      {/* Green Footer ONLY on the Home Page when scrolled to the bottom (Contains Terms, Policies & Customer Care — NO Categories/Seller spam) */}
+      {activeTab === "home" && !selectedProduct && (
+        <footer className="footer">
+          <div className="footer-grid">
+            <div>
+              <a
+                href="#top"
+                className="footer-brand-white"
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              >
+                <span className="brand-flag-mark" aria-hidden="true">
+                  ☪
+                </span>
+                MEGAZONE
+              </a>
+              <p className="footer-meta">
+                MEGAZONE Pakistan is an online shopping platform dedicated to authentic products, nationwide Cash on Delivery (COD), transparent pricing, and 7-day customer return protection.
+              </p>
+            </div>
+
+            <div className="footer-col">
+              <h4>Terms &amp; Legal Policies</h4>
+              <ul>
+                <li>
+                  <button type="button" onClick={() => setActivePolicyKey("terms")}>
+                    Terms &amp; Conditions of Use
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={() => setActivePolicyKey("returns")}>
+                    7-Day Return &amp; Refund Policy
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={() => setActivePolicyKey("shipping")}>
+                    Shipping &amp; COD Policy
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={() => setActivePolicyKey("privacy")}>
+                    Privacy &amp; Buyer Protection
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            <div className="footer-col">
+              <h4>Shopping Rules &amp; COD</h4>
+              <ul>
+                <li>
+                  <span>✓ Nationwide Doorstep Cash on Delivery</span>
+                </li>
+                <li>
+                  <span>✓ Parcel Verification &amp; Live Order ID</span>
+                </li>
+                <li>
+                  <span>✓ Secure Easypaisa, JazzCash &amp; Bank</span>
+                </li>
+                <li>
+                  <span>✓ 7-Day Easy Check &amp; Replacement</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="footer-col">
+              <h4>Customer Account &amp; Help</h4>
+              <ul>
+                <li>
+                  <button type="button" onClick={() => switchMainTab("orders")}>
+                    Track Your Order Status
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileSection("account");
+                      switchMainTab("profile");
+                    }}
+                  >
+                    Account &amp; Delivery Settings
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileSection("seller");
+                      switchMainTab("profile");
+                    }}
+                  >
+                    Multi-Vendor Seller Terms &amp; Apply
+                  </button>
+                </li>
+              </ul>
+            </div>
           </div>
 
-          <div className="footer-col">
-            <h4>Marketplace Tabs</h4>
-            <ul>
-              <li>
-                <button type="button" onClick={() => setActiveTab("home")}>
-                  Home Storefront
-                </button>
-              </li>
-              <li>
-                <button type="button" onClick={() => setActiveTab("categories")}>
-                  All Categories Directory
-                </button>
-              </li>
-              <li>
-                <button type="button" onClick={() => setActiveTab("orders")}>
-                  My Orders &amp; Live Order Tracker
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setProfileSection("account");
-                    setActiveTab("profile");
-                  }}
-                >
-                  User Profile &amp; Settings
-                </button>
-              </li>
-            </ul>
+          <div className="footer-bottom">
+            <span>© 2026 MEGAZONE Pakistan · Online Shopping Platform. All Rights Reserved.</span>
+            <span>Terms &amp; Conditions · Privacy Policy · 7-Day Easy Return · Cash on Delivery</span>
           </div>
+        </footer>
+      )}
 
-          <div className="footer-col">
-            <h4>Seller Center (In Profile Settings)</h4>
-            <ul>
-              <li>
-                <button type="button" onClick={() => openProfileSection("seller")}>
-                  Become a Seller (Apply in Profile)
-                </button>
-              </li>
-              <li>
-                <button type="button" onClick={() => openProfileSection("seller")}>
-                  1-Month Free Seller Trial
-                </button>
-              </li>
-              <li>
-                <button type="button" onClick={() => openProfileSection("seller")}>
-                  One-Time Lifetime Membership
-                </button>
-              </li>
-              <li>
-                <button type="button" onClick={() => openProfileSection("seller")}>
-                  Check Seller Approval Status
-                </button>
-              </li>
-            </ul>
-          </div>
-
-          <div className="footer-col">
-            <h4>Popular Departments</h4>
-            <ul>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveCategory("Electronics");
-                    setActiveTab("categories");
-                  }}
-                >
-                  Electronics &amp; Gadgets
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveCategory("PUBG Mobile UC");
-                    setActiveTab("categories");
-                  }}
-                >
-                  PUBG Mobile UC Top-Up
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveCategory("Free Fire Diamonds");
-                    setActiveTab("categories");
-                  }}
-                >
-                  Free Fire Diamonds
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveCategory("Digital Products");
-                    setTypeFilter("digital");
-                    setActiveTab("categories");
-                  }}
-                >
-                  Digital Downloads
-                </button>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="footer-bottom">
-          <span>© 2026 MEGAZONE Pakistan. Proudly Made for Pakistan.</span>
-          <span>Cash on Delivery · Easypaisa · JazzCash · Bank Transfer</span>
-        </div>
-      </footer>
-
-      {/* Mobile Fixed Bottom Navigation Bar (Daraz App Style: Home, Categories, My Orders, User Profile) */}
+      {/* Mobile Fixed Bottom 5-Tab Bar (Home, Categories, Cart, My Orders, Profile) */}
       <nav className="mobile-bottom-nav" aria-label="Mobile Bottom Navigation">
         <button
           type="button"
-          className={`mobile-tab-btn ${activeTab === "home" ? "active" : ""}`}
-          onClick={() => {
-            setActiveTab("home");
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          }}
+          className={`mobile-tab-btn ${activeTab === "home" && !selectedProduct ? "active" : ""}`}
+          onClick={() => switchMainTab("home")}
         >
-          <Home size={19} />
+          <Home size={18} />
           <span>Home</span>
         </button>
         <button
           type="button"
-          className={`mobile-tab-btn ${activeTab === "categories" ? "active" : ""}`}
-          onClick={() => {
-            setActiveTab("categories");
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          }}
+          className={`mobile-tab-btn ${activeTab === "categories" && !selectedProduct ? "active" : ""}`}
+          onClick={() => switchMainTab("categories")}
         >
-          <LayoutGrid size={19} />
+          <LayoutGrid size={18} />
           <span>Categories</span>
         </button>
         <button
           type="button"
-          className={`mobile-tab-btn ${activeTab === "orders" ? "active" : ""}`}
-          onClick={() => {
-            setActiveTab("orders");
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          }}
+          className={`mobile-tab-btn ${activeTab === "cart" && !selectedProduct ? "active" : ""}`}
+          onClick={() => switchMainTab("cart")}
         >
-          <ClipboardList size={19} />
-          <span>My Orders{allMyOrders.length > 0 ? ` (${allMyOrders.length})` : ""}</span>
+          <ShoppingBag size={18} />
+          <span>Cart ({totalCartCount})</span>
         </button>
         <button
           type="button"
-          className={`mobile-tab-btn ${activeTab === "profile" ? "active" : ""}`}
-          onClick={() => {
-            setActiveTab("profile");
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          }}
+          className={`mobile-tab-btn ${activeTab === "orders" && !selectedProduct ? "active" : ""}`}
+          onClick={() => switchMainTab("orders")}
         >
-          <UserRound size={19} />
+          <ClipboardList size={18} />
+          <span>Orders{allMyOrders.length > 0 ? ` (${allMyOrders.length})` : ""}</span>
+        </button>
+        <button
+          type="button"
+          className={`mobile-tab-btn ${activeTab === "profile" && !selectedProduct ? "active" : ""}`}
+          onClick={() => switchMainTab("profile")}
+        >
+          <UserRound size={18} />
           <span>Profile</span>
         </button>
       </nav>
 
-      {/* Quick-View Product Detail Modal */}
-      {quickViewProduct && (
-        <div className="modal-backdrop" onClick={() => setQuickViewProduct(null)}>
-          <section className="modal-sheet pdp-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="pdp-grid">
-              <div className="pdp-media">
-                {quickViewProduct.images?.[0] ? (
-                  <img
-                    src={quickViewProduct.images[0]}
-                    alt={quickViewProduct.title}
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <div
-                    className={`product-fallback-art ${quickViewProduct.gameTopUp ? "game-art" : ""}`}
-                  >
-                    {quickViewProduct.gameTopUp ? (
-                      <Gamepad2 size={48} />
-                    ) : quickViewProduct.type === "digital" ? (
-                      <Download size={48} />
-                    ) : (
-                      <Package size={48} />
-                    )}
-                    <span>{quickViewProduct.category}</span>
-                  </div>
-                )}
+      {/* Terms & Policies Reader Modal */}
+      {activePolicy && (
+        <div className="modal-backdrop" onClick={() => setActivePolicyKey(null)}>
+          <section
+            className="modal-sheet"
+            style={{ width: "min(640px, 100%)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="checkout-header">
+              <div>
+                <h2>{activePolicy.title}</h2>
+                <p>MEGAZONE Pakistan Official Shopping Policy</p>
               </div>
-              <div className="pdp-content">
-                <div className="pdp-header">
-                  <div className="product-meta">
-                    <span className="product-meta-seller">{quickViewProduct.sellerName}</span>
-                    <span aria-hidden="true">·</span>
-                    <span>{quickViewProduct.category}</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="icon-close-btn"
-                    onClick={() => setQuickViewProduct(null)}
-                    aria-label="Close product details"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <h2 className="pdp-title">{quickViewProduct.title}</h2>
-                <div className="pdp-price">
-                  {money(quickViewProduct.price)}
-                  {quickViewProduct.compareAtPrice &&
-                    quickViewProduct.compareAtPrice > quickViewProduct.price && (
-                      <del className="product-compare">{money(quickViewProduct.compareAtPrice)}</del>
-                    )}
-                </div>
-
-                <p className="pdp-desc">
-                  {quickViewProduct.description ||
-                    "Authentic product fulfilled directly by verified MEGAZONE seller."}
-                </p>
-
-                <div className="pdp-specs">
-                  <div>
-                    <span>Delivery Type</span>
-                    <strong>
-                      {quickViewProduct.gameTopUp
-                        ? "Instant Player ID Top-Up"
-                        : quickViewProduct.type === "digital"
-                          ? "Digital Download"
-                          : "Nationwide Courier Delivery"}
-                    </strong>
-                  </div>
-                  {quickViewProduct.gameTopUp && (
-                    <div>
-                      <span>Game / Package</span>
-                      <strong>
-                        {quickViewProduct.gameName || "Game"} ·{" "}
-                        {quickViewProduct.gamePackage || "Top-Up"}
-                      </strong>
-                    </div>
-                  )}
-                  <div>
-                    <span>Payment Methods</span>
-                    <strong>
-                      {quickViewProduct.type === "digital"
-                        ? "Easypaisa / JazzCash / Bank Transfer"
-                        : "Cash on Delivery (COD) or Online Transfer"}
-                    </strong>
-                  </div>
-                </div>
-
-                <div className="product-actions" style={{ marginTop: "auto" }}>
-                  <button
-                    type="button"
-                    className="btn-cart"
-                    onClick={() => {
-                      add(quickViewProduct);
-                      setQuickViewProduct(null);
-                    }}
-                  >
-                    <ShoppingBag size={15} /> Add to Cart
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-buy-now"
-                    onClick={() => buyNow(quickViewProduct)}
-                  >
-                    Buy Now <ArrowRight size={15} />
-                  </button>
-                </div>
-              </div>
+              <button
+                type="button"
+                className="icon-close-btn"
+                onClick={() => setActivePolicyKey(null)}
+                aria-label="Close policy"
+              >
+                <X size={18} />
+              </button>
+            </header>
+            <div className="checkout-form">
+              <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.75, fontSize: 14 }}>
+                {activePolicy.points.map((pt, i) => (
+                  <li key={i} style={{ marginBottom: 10 }}>
+                    {pt}
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                className="checkout-submit"
+                onClick={() => setActivePolicyKey(null)}
+              >
+                I Understand
+              </button>
             </div>
           </section>
         </div>
@@ -3254,7 +3760,7 @@ export default function App() {
                 <p>
                   {orderSuccess
                     ? "Keep your order number below for live tracking."
-                    : "Fill in your delivery or game account details to place your order."}
+                    : "Fill in your delivery details to place your order."}
                 </p>
               </div>
               <button
@@ -3287,7 +3793,7 @@ export default function App() {
                     onClick={() => {
                       setCheckoutOpen(false);
                       setOrderSuccess("");
-                      setActiveTab("orders");
+                      switchMainTab("orders");
                     }}
                   >
                     <ClipboardList size={15} /> Track in My Orders
@@ -3308,55 +3814,7 @@ export default function App() {
               <form onSubmit={placeOrder} className="checkout-form">
                 <div className="checkout-columns">
                   <div className="checkout-fields">
-                    <h3>
-                      {hasGameTopUp
-                        ? hasPhysical
-                          ? "Customer, Game & Delivery Details"
-                          : "Customer & Game Account Details"
-                        : "Delivery Information"}
-                    </h3>
-
-                    {hasGameTopUp && (
-                      <div className="checkout-field-grid game-fields">
-                        <label>
-                          Game Player ID / UID *
-                          <input
-                            required
-                            value={checkoutForm.playerId}
-                            onChange={(e) =>
-                              setCheckoutForm({ ...checkoutForm, playerId: e.target.value })
-                            }
-                            placeholder="Enter exact PUBG / Free Fire / Ludo UID"
-                          />
-                        </label>
-                        <label>
-                          In-Game Name (optional)
-                          <input
-                            value={checkoutForm.gameUsername}
-                            onChange={(e) =>
-                              setCheckoutForm({
-                                ...checkoutForm,
-                                gameUsername: e.target.value,
-                              })
-                            }
-                            placeholder="Your character name for verification"
-                          />
-                        </label>
-                        <label className="field-full">
-                          Server / Zone ID (optional)
-                          <input
-                            value={checkoutForm.serverId}
-                            onChange={(e) =>
-                              setCheckoutForm({ ...checkoutForm, serverId: e.target.value })
-                            }
-                            placeholder="Only if required by your game"
-                          />
-                        </label>
-                        <p className="field-full game-warning">
-                          Please double-check your Player ID. Top-ups are credited directly to this ID once payment is verified.
-                        </p>
-                      </div>
-                    )}
+                    <h3>Customer &amp; Delivery Information</h3>
 
                     <div className="checkout-field-grid">
                       <label>
@@ -3382,48 +3840,43 @@ export default function App() {
                           placeholder="03XX XXXXXXX"
                         />
                       </label>
-                      <label className={hasPhysical ? "" : "field-full"}>
-                        Email Address {hasDigital ? "*" : "(optional)"}
+                      <label>
+                        Email Address (optional)
                         <input
-                          required={hasDigital}
                           type="email"
                           value={checkoutForm.email}
                           onChange={(e) =>
                             setCheckoutForm({ ...checkoutForm, email: e.target.value })
                           }
-                          placeholder="For order receipt & digital delivery"
+                          placeholder="For order receipt"
                         />
                       </label>
-                      {hasPhysical && (
-                        <>
-                          <label>
-                            City *
-                            <input
-                              required
-                              value={checkoutForm.city}
-                              onChange={(e) =>
-                                setCheckoutForm({ ...checkoutForm, city: e.target.value })
-                              }
-                              placeholder="Karachi, Lahore, Islamabad..."
-                            />
-                          </label>
-                          <label className="field-full">
-                            Complete Street Address *
-                            <textarea
-                              required
-                              rows={2}
-                              value={checkoutForm.address}
-                              onChange={(e) =>
-                                setCheckoutForm({
-                                  ...checkoutForm,
-                                  address: e.target.value,
-                                })
-                              }
-                              placeholder="House/Flat #, Street, Area / Sector, Nearest Landmark"
-                            />
-                          </label>
-                        </>
-                      )}
+                      <label>
+                        City *
+                        <input
+                          required
+                          value={checkoutForm.city}
+                          onChange={(e) =>
+                            setCheckoutForm({ ...checkoutForm, city: e.target.value })
+                          }
+                          placeholder="Karachi, Lahore, Islamabad..."
+                        />
+                      </label>
+                      <label className="field-full">
+                        Complete Street Address *
+                        <textarea
+                          required
+                          rows={2}
+                          value={checkoutForm.address}
+                          onChange={(e) =>
+                            setCheckoutForm({
+                              ...checkoutForm,
+                              address: e.target.value,
+                            })
+                          }
+                          placeholder="House/Flat #, Street, Area / Sector, Nearest Landmark"
+                        />
+                      </label>
                       <label className="field-full">
                         Order Notes (optional)
                         <textarea
@@ -3440,12 +3893,11 @@ export default function App() {
                     <h3 className="payment-heading">Select Payment Method</h3>
 
                     <label
-                      className={`payment-option ${checkoutForm.payment === "cod" ? "selected" : ""} ${hasDigital ? "disabled-option" : ""}`}
+                      className={`payment-option ${checkoutForm.payment === "cod" ? "selected" : ""}`}
                     >
                       <input
                         type="radio"
                         name="payment"
-                        disabled={hasDigital}
                         checked={checkoutForm.payment === "cod"}
                         onChange={() =>
                           setCheckoutForm({
@@ -3457,11 +3909,7 @@ export default function App() {
                       />
                       <span className="payment-option-text">
                         <b>Cash on Delivery (COD)</b>
-                        <small>
-                          {hasDigital
-                            ? "Available for physical courier items only"
-                            : "Pay cash at your doorstep when your parcel arrives"}
-                        </small>
+                        <small>Pay cash at your doorstep when your parcel arrives</small>
                       </span>
                       <span className="payment-radio" />
                     </label>

@@ -5,9 +5,6 @@ export const categories = [
   "Shoes",
   "Beauty",
   "Home & Kitchen",
-  "Gaming",
-  "PUBG Mobile UC",
-  "Free Fire Diamonds",
-  "Ludo Diamonds",
-  "Digital Products",
+  "Watches & Accessories",
+  "Sports & Lifestyle",
 ];
