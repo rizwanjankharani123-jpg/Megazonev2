@@ -1,0 +1,21 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() { return request.auth != null; }
+    function userDoc() { return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)); }
+    function isSuperAdmin() { return signedIn() && userDoc().data.role == 'super_admin'; }
+    function isSeller() { return signedIn() && userDoc().data.role == 'seller'; }
+    match /product-images/{sellerId}/{fileName} {
+      allow read: if true;
+      allow write: if signedIn() && (isSuperAdmin() || (isSeller() && request.auth.uid == sellerId))
+        && request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp|avif)');
+    }
+    match /digital-files/{sellerId}/{fileName} {
+      allow read: if false; // Deliver via authenticated server-generated links only.
+      allow write: if signedIn() && (isSuperAdmin() || (isSeller() && request.auth.uid == sellerId))
+        && request.resource.size < 50 * 1024 * 1024;
+    }
+    match /{allPaths=**} { allow read, write: if false; }
+  }
+}

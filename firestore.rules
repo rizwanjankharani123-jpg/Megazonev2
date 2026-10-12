@@ -1,0 +1,76 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function userRole() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : 'customer';
+    }
+    function isSuperAdmin() { return signedIn() && userRole() == 'super_admin'; }
+    function isSeller() { return signedIn() && userRole() == 'seller'; }
+
+    match /products/{productId} {
+      allow read: if resource.data.status == 'published' || isSuperAdmin() || (isSeller() && resource.data.sellerId == request.auth.uid);
+      allow create: if isSuperAdmin() || (isSeller() && request.resource.data.sellerId == request.auth.uid && request.resource.data.status == 'pending');
+      allow update, delete: if isSuperAdmin() || (isSeller() && resource.data.sellerId == request.auth.uid && request.resource.data.sellerId == request.auth.uid && request.resource.data.status == resource.data.status);
+    }
+
+    // Orders can be created via Cloud Function (Admin SDK) or validated storefront checkout, and read by the customer who placed them or Super Admin
+    match /orders/{orderId} {
+      allow create: if request.resource.data.customerName is string
+        && request.resource.data.customerName.size() >= 2
+        && request.resource.data.phone is string
+        && request.resource.data.phone.size() >= 10
+        && request.resource.data.items is list
+        && request.resource.data.items.size() >= 1
+        && request.resource.data.total is number
+        && request.resource.data.total > 0
+        && request.resource.data.orderStatus == 'new'
+        && request.resource.data.paymentMethod in ['cod', 'online']
+        && request.resource.data.paymentStatus in ['cod_due', 'pending_verification'];
+      allow update, delete: if isSuperAdmin();
+      allow read: if isSuperAdmin() || (signedIn() && resource.data.customerUid == request.auth.uid);
+    }
+
+    match /sellerOrders/{sellerOrderId} {
+      allow read: if isSuperAdmin() || (isSeller() && resource.data.sellerId == request.auth.uid);
+      allow create: if request.resource.data.sellerId is string
+        && request.resource.data.customerName is string
+        && request.resource.data.phone is string
+        && request.resource.data.items is list
+        && request.resource.data.total is number
+        && request.resource.data.total > 0
+        && request.resource.data.orderStatus == 'new'
+        && request.resource.data.paymentStatus in ['cod_due', 'pending_verification'];
+      allow delete: if isSuperAdmin();
+      allow update: if isSuperAdmin() || (isSeller() && resource.data.sellerId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus','paymentStatus','sellerNote','updatedAt'])
+        && request.resource.data.orderStatus in ['new','confirmed','processing','shipped','completed','cancelled']
+        && request.resource.data.paymentStatus in ['cod_due','pending_verification','verified','rejected','refunded']);
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isSuperAdmin());
+      allow create: if isSuperAdmin() || (signedIn() && request.auth.uid == uid
+        && request.resource.data.role == 'customer');
+      allow delete: if isSuperAdmin();
+      allow update: if isSuperAdmin() || (signedIn() && request.auth.uid == uid
+        && request.resource.data.role == resource.data.role);
+    }
+
+    match /sellerApplications/{appId} {
+      allow read: if isSuperAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow create: if request.resource.data.shopName is string
+        && request.resource.data.ownerName is string
+        && request.resource.data.phone is string;
+      allow update: if isSuperAdmin() || (signedIn() && request.auth.uid == appId && resource.data.status == 'pending');
+      allow delete: if isSuperAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isSuperAdmin() || ((isSeller() || (signedIn() && settingId == 'sellerPayment_' + request.auth.uid)) && settingId == 'sellerPayment_' + request.auth.uid);
+    }
+  }
+}
